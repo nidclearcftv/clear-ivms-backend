@@ -1,17 +1,13 @@
 package httpapi
 
-import (
-	"net/http"
+import "github.com/gin-gonic/gin"
 
-	"github.com/gin-gonic/gin"
-)
-
-type statusResponse struct {
+type statusData struct {
 	Status string `json:"status"`
 }
 
 func registerStatusRoutes(rg *gin.RouterGroup) {
 	rg.GET("/status", func(c *gin.Context) {
-		c.JSON(http.StatusOK, statusResponse{Status: "ok"})
+		OK(c, statusData{Status: "ok"})
 	})
 }
