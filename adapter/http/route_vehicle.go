@@ -20,6 +20,6 @@ func registerVehicleRoutes(rg *gin.RouterGroup, vehicles port.VehicleService) {
 			RespondError(c, err)
 			return
 		}
-		OK(c, list)
+		OK(c, newVehicleListDTO(list))
 	})
 }
