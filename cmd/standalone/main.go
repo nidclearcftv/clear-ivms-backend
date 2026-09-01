@@ -11,6 +11,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cache/memory"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
+	repomanager "github.com/nidclearcftv/clear-ivms-backend/adapter/repo-manager"
 	"github.com/nidclearcftv/clear-ivms-backend/core/service"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/env"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/logger"
@@ -65,6 +66,13 @@ func main() {
 		log.Fatalw("failed to start cmsv6 server", "error", err)
 	}
 
+	vehicleRepository, err := repomanager.NewVehicleRepository(repomanager.VehicleRepositoryOptions{
+		CMSV6: cmsv6Server,
+	})
+	if err != nil {
+		log.Fatalw("failed to create vehicle repository", "error", err)
+	}
+
 	vehicleCache, err := memory.NewCache(memory.Options{
 		DefaultExpiration: envOptions.CacheDefaultExpiration,
 	})
@@ -73,7 +81,7 @@ func main() {
 	}
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
-		Repository: cmsv6Server,
+		Repository: vehicleRepository,
 		Cache:      vehicleCache,
 	})
 	if err != nil {
