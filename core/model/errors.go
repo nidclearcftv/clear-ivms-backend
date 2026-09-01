@@ -20,6 +20,10 @@ const (
 	// specific, registered code.
 	ErrCodeUnknown ErrorCode = 1
 
+	// ErrCodeInvalidRequest means the request itself was malformed (e.g.
+	// invalid query parameters) and couldn't be processed.
+	ErrCodeInvalidRequest ErrorCode = 2
+
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
 )
@@ -29,6 +33,7 @@ const (
 var errorMessages = map[ErrorCode]string{
 	ErrCodeNone:            "success",
 	ErrCodeUnknown:         "an unexpected error occurred",
+	ErrCodeInvalidRequest:  "invalid request",
 	ErrCodeVehicleNotFound: "vehicle not found",
 }
 

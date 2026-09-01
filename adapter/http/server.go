@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/validate"
 )
 
@@ -32,6 +33,9 @@ type Options struct {
 	Logger *zap.SugaredLogger
 
 	Addr string `validate:"required"`
+
+	// VehicleService backs the /api/v1/vehicles route.
+	VehicleService port.VehicleService `validate:"required"`
 
 	// AllowedOrigins is the CORS allow-list. Leave empty to disable CORS
 	// entirely: cross-origin browser requests are blocked (the safe
@@ -112,6 +116,7 @@ func NewServer(opts Options) (*Server, error) {
 
 	v1 := engine.Group(apiV1Prefix)
 	registerStatusRoutes(v1)
+	registerVehicleRoutes(v1, opts.VehicleService)
 
 	return &Server{
 		engine: engine,

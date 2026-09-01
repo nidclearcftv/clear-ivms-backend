@@ -28,6 +28,7 @@ type Response[T any] struct {
 // reporting success.
 var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeUnknown:         http.StatusInternalServerError,
+	model.ErrCodeInvalidRequest:  http.StatusBadRequest,
 	model.ErrCodeVehicleNotFound: http.StatusNotFound,
 }
 
@@ -39,11 +40,14 @@ func statusForCode(code model.ErrorCode) int {
 }
 
 func message(code model.ErrorCode, messages ...string) string {
+	if len(messages) == 0 {
+		return model.MessageForCode(code)
+	}
 	return fmt.Sprintf("%s; %s", model.MessageForCode(code), strings.Join(messages, "; "))
 }
 
 // OK writes a 200 response wrapping data in the standard success envelope.
-func OK[T any](c *gin.Context, data T) {
+func OK(c *gin.Context, data any) {
 	respondOK(c, http.StatusOK, data)
 }
 

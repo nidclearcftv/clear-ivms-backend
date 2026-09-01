@@ -9,7 +9,9 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/joho/godotenv v1.5.1
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.uber.org/zap v1.28.0
+	golang.org/x/sync v0.22.0
 )
 
 require (

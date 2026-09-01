@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/cache/memory"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
+	"github.com/nidclearcftv/clear-ivms-backend/core/service"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/env"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/logger"
 )
@@ -20,6 +23,8 @@ type Env struct {
 
 	HTTPAddr           string   `env:"HTTP_ADDR,default=:8080"`
 	HTTPAllowedOrigins []string `env:"HTTP_ALLOWED_ORIGINS,separator=,"`
+
+	CacheDefaultExpiration time.Duration `env:"CACHE_DEFAULT_EXPIRATION,default=1m"`
 }
 
 type App struct {
@@ -60,10 +65,26 @@ func main() {
 		log.Fatalw("failed to start cmsv6 server", "error", err)
 	}
 
+	vehicleCache, err := memory.NewCache(memory.Options{
+		DefaultExpiration: envOptions.CacheDefaultExpiration,
+	})
+	if err != nil {
+		log.Fatalw("failed to create vehicle cache", "error", err)
+	}
+
+	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
+		Repository: cmsv6Server,
+		Cache:      vehicleCache,
+	})
+	if err != nil {
+		log.Fatalw("failed to create vehicle service", "error", err)
+	}
+
 	httpServer, err := httpapi.NewServer(httpapi.Options{
 		Logger:         log,
 		Addr:           envOptions.HTTPAddr,
 		AllowedOrigins: envOptions.HTTPAllowedOrigins,
+		VehicleService: vehicleService,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)
