@@ -13,11 +13,11 @@ import (
 // data from a data source. It is implemented by outbound adapters, e.g.
 // adapter/cmsv6.
 type VehicleRepository interface {
-	ListVehicles(ctx context.Context, filters model.VehicleFilters) ([]model.Vehicle, error)
+	ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
 }
 
 // VehicleService is the driving (primary) port exposing vehicle-related
 // business operations to inbound adapters, e.g. adapter/http controllers.
 type VehicleService interface {
-	ListVehicles(ctx context.Context, filters model.VehicleFilters) ([]model.Vehicle, error)
+	ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
 }

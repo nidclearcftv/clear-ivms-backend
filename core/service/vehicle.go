@@ -37,11 +37,11 @@ func NewVehicleService(opts VehicleServiceOptions) (*VehicleService, error) {
 }
 
 // Vehicle request -> singleflight -> cache -> repository.
-func (s *VehicleService) ListVehicles(ctx context.Context, filters model.VehicleFilters) ([]model.Vehicle, error) {
+func (s *VehicleService) ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error) {
 	agentID := utils.AgentID(ctx)
 	key := model.VechicleListKey(agentID, filters)
 
-	return utils.FetchThrough(ctx, s.cache, key, func() ([]model.Vehicle, error) {
+	return utils.FetchThrough(ctx, s.cache, key, func() (model.List[model.Vehicle], error) {
 		return s.repo.ListVehicles(ctx, filters)
 	})
 }

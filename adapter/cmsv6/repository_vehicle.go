@@ -18,22 +18,22 @@ var _ port.VehicleRepository = (*Server)(nil)
 //
 // /vehicle/list.do has no server-side pagination, so filters.Pagination is
 // applied in-memory after fetching and mapping the full list.
-func (s *Server) ListVehicles(ctx context.Context, filters model.VehicleFilters) ([]model.Vehicle, error) {
+func (s *Server) ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error) {
 	resp, err := s.VehicleList(ctx)
 	if err != nil {
-		return nil, err
+		return model.List[model.Vehicle]{}, err
 	}
 
 	vehicles := make([]model.Vehicle, 0, len(resp.UserDeviceList))
 	for _, v := range resp.UserDeviceList {
 		vehicle, err := toModelVehicle(v)
 		if err != nil {
-			return nil, fmt.Errorf("cmsv6: failed to map vehicle %d: %w", v.ID, err)
+			return model.List[model.Vehicle]{}, fmt.Errorf("cmsv6: failed to map vehicle %d: %w", v.ID, err)
 		}
 		vehicles = append(vehicles, vehicle)
 	}
 
-	return vehicles, nil
+	return model.List[model.Vehicle]{Items: vehicles, Total: len(vehicles)}, nil
 }
 
 // toModelVehicle maps a cmsv6 Vehicle into the domain model.Vehicle. Fields
