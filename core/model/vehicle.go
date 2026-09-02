@@ -8,8 +8,7 @@ type Vehicle struct {
 	IVMSType    IVMSType
 	Type        string
 	PlateNumber string
-	DeviceTime  time.Time
-	Attributes  JSON
+	LastSeen    time.Time
 }
 
 type VehicleFilters struct {

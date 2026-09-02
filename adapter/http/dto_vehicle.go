@@ -15,7 +15,7 @@ type VehicleDTO struct {
 	FleetID     string    `json:"fleetId"`
 	Type        string    `json:"type"`
 	PlateNumber string    `json:"plateNumber"`
-	DeviceTime  time.Time `json:"deviceTime"`
+	LastSeen    time.Time `json:"lastSeen"`
 }
 
 func newVehicleDTO(v model.Vehicle) VehicleDTO {
@@ -24,7 +24,7 @@ func newVehicleDTO(v model.Vehicle) VehicleDTO {
 		FleetID:     string(v.FleetID),
 		Type:        v.Type,
 		PlateNumber: v.PlateNumber,
-		DeviceTime:  v.DeviceTime,
+		LastSeen:    v.LastSeen,
 	}
 }
 

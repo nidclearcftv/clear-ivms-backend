@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"time"
 
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
@@ -40,22 +38,12 @@ func (s *Server) ListVehicles(ctx context.Context, filters model.VehicleFilters)
 // without a direct equivalent in the domain model are preserved under
 // Attributes instead of being discarded.
 func toModelVehicle(v Vehicle) (model.Vehicle, error) {
-	attrs, err := toAttributes(v)
-	if err != nil {
-		return model.Vehicle{}, err
-	}
-
 	return model.Vehicle{
-		ID:          model.ID(strconv.Itoa(v.ID)),
-		FleetID:     model.ID(strconv.Itoa(v.GroupId)),
+		ID:          EncodeID(v.ID),
+		FleetID:     EncodeID(v.GroupId),
 		Type:        v.VehiType,
 		PlateNumber: v.PlateIDNO,
-		// /vehicle/list.do has no last-communication timestamp; DateProduct
-		// (the device's production date) is the only timestamp it returns,
-		// so it's used here as a best-effort stand-in.
-		IVMSType:   model.IVMSTypeCMSV6,
-		DeviceTime: time.UnixMilli(v.DateProduct),
-		Attributes: attrs,
+		IVMSType:    model.IVMSTypeCMSV6,
 	}, nil
 }
 
