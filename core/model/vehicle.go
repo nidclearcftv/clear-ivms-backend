@@ -1,14 +1,10 @@
 package model
 
-import "time"
-
 type Vehicle struct {
 	ID          ID
 	FleetID     ID
 	IVMSType    IVMSType
-	Type        string
 	PlateNumber string
-	LastSeen    time.Time
 }
 
 type VehicleFilters struct {

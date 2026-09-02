@@ -1,8 +1,6 @@
 package httpapi
 
 import (
-	"time"
-
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
 )
 
@@ -11,20 +9,16 @@ import (
 // source-specific payload) and IVMSType (which internal adapter sourced
 // the record) — so vendor/adapter details never leak to API consumers.
 type VehicleDTO struct {
-	ID          string    `json:"id"`
-	FleetID     string    `json:"fleetId"`
-	Type        string    `json:"type"`
-	PlateNumber string    `json:"plateNumber"`
-	LastSeen    time.Time `json:"lastSeen"`
+	ID          string `json:"id"`
+	FleetID     string `json:"fleetId"`
+	PlateNumber string `json:"plateNumber"`
 }
 
 func newVehicleDTO(v model.Vehicle) VehicleDTO {
 	return VehicleDTO{
 		ID:          string(v.ID),
 		FleetID:     string(v.FleetID),
-		Type:        v.Type,
 		PlateNumber: v.PlateNumber,
-		LastSeen:    v.LastSeen,
 	}
 }
 

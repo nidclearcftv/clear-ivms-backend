@@ -41,7 +41,6 @@ func toModelVehicle(v Vehicle) (model.Vehicle, error) {
 	return model.Vehicle{
 		ID:          EncodeID(v.ID),
 		FleetID:     EncodeID(v.GroupId),
-		Type:        v.VehiType,
 		PlateNumber: v.PlateIDNO,
 		IVMSType:    model.IVMSTypeCMSV6,
 	}, nil
