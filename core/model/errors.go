@@ -24,8 +24,40 @@ const (
 	// invalid query parameters) and couldn't be processed.
 	ErrCodeInvalidRequest ErrorCode = 2
 
+	// ErrCodeForbidden means the caller is authenticated but not
+	// authorized for the specific resource requested (e.g. an account
+	// that isn't a member of the organization named in the request).
+	ErrCodeForbidden ErrorCode = 3
+
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
+
+	// Account errors (resource 2).
+	ErrCodeAccountNotFound           ErrorCode = 2001
+	ErrCodeAccountEmailAlreadyExists ErrorCode = 2002
+	// ErrCodeAccountHasOrganizations means the account couldn't be deleted
+	// because it still belongs to at least one organization.
+	ErrCodeAccountHasOrganizations ErrorCode = 2003
+	ErrCodeAccountSessionNotFound  ErrorCode = 2004
+	// ErrCodeInvalidCredentials covers both an unknown email and a wrong
+	// password on login — deliberately not distinguished, so a login
+	// failure never reveals whether a given email is registered.
+	ErrCodeInvalidCredentials ErrorCode = 2005
+	ErrCodeAccountBlocked     ErrorCode = 2006
+
+	// Organization errors (resource 3).
+	ErrCodeOrganizationNotFound ErrorCode = 3001
+	// ErrCodeOrganizationHasTeams/-Fleets/-Accounts mean the organization
+	// couldn't be deleted because dependents still reference it.
+	ErrCodeOrganizationHasTeams    ErrorCode = 3002
+	ErrCodeOrganizationHasFleets   ErrorCode = 3003
+	ErrCodeOrganizationHasAccounts ErrorCode = 3004
+
+	// Team errors (resource 4).
+	ErrCodeTeamNotFound ErrorCode = 4001
+
+	// Fleet errors (resource 5).
+	ErrCodeFleetNotFound ErrorCode = 5001
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -34,7 +66,24 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeNone:            "success",
 	ErrCodeUnknown:         "an unexpected error occurred",
 	ErrCodeInvalidRequest:  "invalid request",
+	ErrCodeForbidden:       "you do not have access to this resource",
 	ErrCodeVehicleNotFound: "vehicle not found",
+
+	ErrCodeAccountNotFound:           "account not found",
+	ErrCodeAccountEmailAlreadyExists: "an account with this email already exists",
+	ErrCodeAccountHasOrganizations:   "account still belongs to one or more organizations",
+	ErrCodeAccountSessionNotFound:    "account session not found",
+	ErrCodeInvalidCredentials:        "invalid email or password",
+	ErrCodeAccountBlocked:            "account is blocked",
+
+	ErrCodeOrganizationNotFound:    "organization not found",
+	ErrCodeOrganizationHasTeams:    "organization still has one or more teams",
+	ErrCodeOrganizationHasFleets:   "organization still has one or more fleets",
+	ErrCodeOrganizationHasAccounts: "organization still has one or more accounts",
+
+	ErrCodeTeamNotFound: "team not found",
+
+	ErrCodeFleetNotFound: "fleet not found",
 }
 
 // MessageForCode returns the registered message for code, falling back to

@@ -12,4 +12,8 @@ type Cache interface {
 	// Set stores value under key. Implementations apply their own
 	// configured expiration; there is no per-call override for now.
 	Set(ctx context.Context, key string, value any)
+
+	// Del removes key from the cache. Deleting a key that isn't present is
+	// a no-op, not an error.
+	Del(ctx context.Context, key string)
 }

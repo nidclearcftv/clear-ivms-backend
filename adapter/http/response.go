@@ -29,7 +29,13 @@ type Response[T any] struct {
 var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeUnknown:         http.StatusInternalServerError,
 	model.ErrCodeInvalidRequest:  http.StatusBadRequest,
+	model.ErrCodeForbidden:       http.StatusForbidden,
 	model.ErrCodeVehicleNotFound: http.StatusNotFound,
+
+	model.ErrCodeAccountNotFound:        http.StatusNotFound,
+	model.ErrCodeAccountSessionNotFound: http.StatusNotFound,
+	model.ErrCodeInvalidCredentials:     http.StatusUnauthorized,
+	model.ErrCodeAccountBlocked:         http.StatusForbidden,
 }
 
 func statusForCode(code model.ErrorCode) int {

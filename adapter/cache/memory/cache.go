@@ -54,4 +54,9 @@ func (c *Cache) Set(_ context.Context, key string, value any) {
 	c.cache.SetDefault(key, value)
 }
 
+// Del removes key from the cache. A no-op if key isn't present.
+func (c *Cache) Del(_ context.Context, key string) {
+	c.cache.Delete(key)
+}
+
 var _ port.Cache = (*Cache)(nil)
