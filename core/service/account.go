@@ -278,18 +278,6 @@ func (s *AccountService) RemoveOrganization(ctx context.Context, accountID, orga
 	return nil
 }
 
-func (s *AccountService) ListFromTeam(ctx context.Context, teamID model.ID) (model.List[model.Account], error) {
-	return s.repo.ListFromTeam(ctx, teamID)
-}
-
-func (s *AccountService) AddTeam(ctx context.Context, accountID, teamID model.ID) error {
-	return s.repo.AddTeam(ctx, accountID, teamID)
-}
-
-func (s *AccountService) RemoveTeam(ctx context.Context, accountID, teamID model.ID) error {
-	return s.repo.RemoveTeam(ctx, accountID, teamID)
-}
-
 // newSessionToken generates a random session token (returned to the
 // client) and its SHA-256 hash (what's actually persisted). Unlike
 // passwords, session tokens are already high-entropy, so a fast hash is

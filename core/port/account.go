@@ -53,10 +53,6 @@ type AccountRepository interface {
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
-
-	ListFromTeam(ctx context.Context, teamID model.ID) (model.List[model.Account], error)
-	AddTeam(ctx context.Context, accountID, teamID model.ID) error
-	RemoveTeam(ctx context.Context, accountID, teamID model.ID) error
 }
 
 // AccountService is the driving (primary) port exposing account-related
@@ -100,8 +96,4 @@ type AccountService interface {
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
-
-	ListFromTeam(ctx context.Context, teamID model.ID) (model.List[model.Account], error)
-	AddTeam(ctx context.Context, accountID, teamID model.ID) error
-	RemoveTeam(ctx context.Context, accountID, teamID model.ID) error
 }

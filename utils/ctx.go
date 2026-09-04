@@ -31,8 +31,8 @@ func AccountID(ctx context.Context) model.ID {
 
 // WithOrganizationID returns a copy of ctx carrying the current request's
 // organization ID, for OrganizationID to read back later. Services use
-// this to scope organization-owned resources (e.g. teams, fleets)
-// automatically, rather than trusting a caller-supplied organization ID.
+// this to scope organization-owned resources (e.g. groups) automatically,
+// rather than trusting a caller-supplied organization ID.
 func WithOrganizationID(ctx context.Context, id model.ID) context.Context {
 	return context.WithValue(ctx, ctxKeyOrganizationID, id)
 }

@@ -13,7 +13,7 @@ import (
 type VehicleDTO struct {
 	ID             string    `json:"id"`
 	OrganizationID string    `json:"organizationId"`
-	FleetID        string    `json:"fleetId,omitempty"`
+	GroupID        string    `json:"groupId,omitempty"`
 	PlateNumber    string    `json:"plateNumber"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -27,8 +27,8 @@ func newVehicleDTO(v model.Vehicle) VehicleDTO {
 		CreatedAt:      v.CreatedAt,
 		UpdatedAt:      v.UpdatedAt,
 	}
-	if v.FleetID != nil {
-		dto.FleetID = string(*v.FleetID)
+	if v.GroupID != nil {
+		dto.GroupID = string(*v.GroupID)
 	}
 	return dto
 }

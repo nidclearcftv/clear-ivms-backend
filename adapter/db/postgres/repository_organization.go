@@ -107,8 +107,8 @@ func (r *OrganizationRepository) Update(ctx context.Context, organization model.
 }
 
 // Delete maps each RESTRICT foreign key that can point at an organization
-// (teams, fleets, account_organizations) to its own error, so callers know
-// exactly what's still attached.
+// (groups, account_organizations) to its own error, so callers know exactly
+// what's still attached.
 func (r *OrganizationRepository) Delete(ctx context.Context, id model.ID) error {
 	query, args, err := psql.Delete("organizations").
 		Where(sq.Eq{"id": string(id)}).
@@ -120,10 +120,8 @@ func (r *OrganizationRepository) Delete(ctx context.Context, id model.ID) error 
 	tag, err := r.db.Pool.Exec(ctx, query, args...)
 	if err != nil {
 		switch foreignKeyViolationConstraint(err) {
-		case "fk_teams_organization":
-			return model.NewError(model.ErrCodeOrganizationHasTeams, err)
-		case "fk_fleets_organization":
-			return model.NewError(model.ErrCodeOrganizationHasFleets, err)
+		case "fk_groups_organization":
+			return model.NewError(model.ErrCodeOrganizationHasGroups, err)
 		case "fk_account_organizations_organization":
 			return model.NewError(model.ErrCodeOrganizationHasAccounts, err)
 		}

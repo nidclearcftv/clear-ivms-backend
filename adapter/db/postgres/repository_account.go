@@ -486,60 +486,6 @@ func (r *AccountRepository) RemoveOrganization(ctx context.Context, accountID, o
 	return nil
 }
 
-func (r *AccountRepository) ListFromTeam(ctx context.Context, teamID model.ID) (model.List[model.Account], error) {
-	query, args, err := psql.Select("a.id", "a.name", "a.email", "a.phone_number", "a.type", "a.blocked", "a.created_at", "a.updated_at").
-		From("accounts a").
-		Join("account_teams act ON act.account_id = a.id").
-		Where(sq.Eq{"act.team_id": string(teamID)}).
-		OrderBy("a.created_at DESC").
-		ToSql()
-	if err != nil {
-		return model.List[model.Account]{}, fmt.Errorf("postgres: failed to build list accounts from team query: %w", err)
-	}
-
-	rows, err := r.db.Pool.Query(ctx, query, args...)
-	if err != nil {
-		return model.List[model.Account]{}, fmt.Errorf("postgres: failed to list accounts from team: %w", err)
-	}
-	defer rows.Close()
-
-	return scanAccountList(rows)
-}
-
-// AddTeam is idempotent: adding an account to a team it already belongs to
-// is a no-op, not an error.
-func (r *AccountRepository) AddTeam(ctx context.Context, accountID, teamID model.ID) error {
-	query, args, err := psql.Insert("account_teams").
-		Columns("account_id", "team_id").
-		Values(string(accountID), string(teamID)).
-		Suffix("ON CONFLICT (account_id, team_id) DO NOTHING").
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("postgres: failed to build add account to team query: %w", err)
-	}
-
-	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
-		return fmt.Errorf("postgres: failed to add account to team: %w", err)
-	}
-	return nil
-}
-
-// RemoveTeam is idempotent: removing a membership that doesn't exist is a
-// no-op, not an error.
-func (r *AccountRepository) RemoveTeam(ctx context.Context, accountID, teamID model.ID) error {
-	query, args, err := psql.Delete("account_teams").
-		Where(sq.Eq{"account_id": string(accountID), "team_id": string(teamID)}).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("postgres: failed to build remove account from team query: %w", err)
-	}
-
-	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
-		return fmt.Errorf("postgres: failed to remove account from team: %w", err)
-	}
-	return nil
-}
-
 // scannableRow is satisfied by both pgx.Row (QueryRow) and pgx.Rows
 // (Query, one row at a time), letting scanAccount back both.
 type scannableRow interface {

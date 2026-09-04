@@ -50,17 +50,13 @@ const (
 
 	// Organization errors (resource 3).
 	ErrCodeOrganizationNotFound ErrorCode = 3001
-	// ErrCodeOrganizationHasTeams/-Fleets/-Accounts mean the organization
-	// couldn't be deleted because dependents still reference it.
-	ErrCodeOrganizationHasTeams    ErrorCode = 3002
-	ErrCodeOrganizationHasFleets   ErrorCode = 3003
+	// ErrCodeOrganizationHasGroups/-Accounts mean the organization couldn't
+	// be deleted because dependents still reference it.
+	ErrCodeOrganizationHasGroups   ErrorCode = 3003
 	ErrCodeOrganizationHasAccounts ErrorCode = 3004
 
-	// Team errors (resource 4).
-	ErrCodeTeamNotFound ErrorCode = 4001
-
-	// Fleet errors (resource 5).
-	ErrCodeFleetNotFound ErrorCode = 5001
+	// Group errors (resource 5).
+	ErrCodeGroupNotFound ErrorCode = 5001
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -81,13 +77,10 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeAccountBlocked:            "account is blocked",
 
 	ErrCodeOrganizationNotFound:    "organization not found",
-	ErrCodeOrganizationHasTeams:    "organization still has one or more teams",
-	ErrCodeOrganizationHasFleets:   "organization still has one or more fleets",
+	ErrCodeOrganizationHasGroups:   "organization still has one or more groups",
 	ErrCodeOrganizationHasAccounts: "organization still has one or more accounts",
 
-	ErrCodeTeamNotFound: "team not found",
-
-	ErrCodeFleetNotFound: "fleet not found",
+	ErrCodeGroupNotFound: "group not found",
 }
 
 // MessageForCode returns the registered message for code, falling back to

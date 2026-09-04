@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var vehicleColumns = []string{"id", "organization_id", "fleet_id", "ivms_type", "external_id", "plate_number", "created_at", "updated_at"}
+var vehicleColumns = []string{"id", "organization_id", "group_id", "ivms_type", "external_id", "plate_number", "created_at", "updated_at"}
 
 // VehicleRepository implements port.VehicleRepository against Postgres.
 type VehicleRepository struct {
@@ -25,8 +25,8 @@ func NewVehicleRepository(db *DB) *VehicleRepository {
 
 func (r *VehicleRepository) Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	query, args, err := psql.Insert("vehicles").
-		Columns("organization_id", "fleet_id", "ivms_type", "external_id", "plate_number").
-		Values(string(vehicle.OrganizationID), idPtrToStringPtr(vehicle.FleetID), vehicle.IVMSType.String(), vehicle.ExternalID, vehicle.PlateNumber).
+		Columns("organization_id", "group_id", "ivms_type", "external_id", "plate_number").
+		Values(string(vehicle.OrganizationID), idPtrToStringPtr(vehicle.GroupID), vehicle.IVMSType.String(), vehicle.ExternalID, vehicle.PlateNumber).
 		Suffix("RETURNING id, created_at, updated_at").
 		ToSql()
 	if err != nil {
@@ -42,8 +42,8 @@ func (r *VehicleRepository) Create(ctx context.Context, vehicle model.Vehicle) (
 		switch foreignKeyViolationConstraint(err) {
 		case "fk_vehicles_organization":
 			return model.Vehicle{}, model.NewError(model.ErrCodeOrganizationNotFound, err)
-		case "fk_vehicles_fleet":
-			return model.Vehicle{}, model.NewError(model.ErrCodeFleetNotFound, err)
+		case "fk_vehicles_group":
+			return model.Vehicle{}, model.NewError(model.ErrCodeGroupNotFound, err)
 		}
 		return model.Vehicle{}, fmt.Errorf("postgres: failed to create vehicle: %w", err)
 	}
@@ -80,8 +80,8 @@ func (r *VehicleRepository) List(ctx context.Context, filters model.VehicleFilte
 	if filters.OrganizationID != "" {
 		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
 	}
-	if filters.FleetID != "" {
-		builder = builder.Where(sq.Eq{"fleet_id": string(filters.FleetID)})
+	if filters.GroupID != "" {
+		builder = builder.Where(sq.Eq{"group_id": string(filters.GroupID)})
 	}
 
 	query, args, err := builder.ToSql()
@@ -101,7 +101,7 @@ func (r *VehicleRepository) List(ctx context.Context, filters model.VehicleFilte
 func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	query, args, err := psql.Update("vehicles").
 		Set("organization_id", string(vehicle.OrganizationID)).
-		Set("fleet_id", idPtrToStringPtr(vehicle.FleetID)).
+		Set("group_id", idPtrToStringPtr(vehicle.GroupID)).
 		Set("ivms_type", vehicle.IVMSType.String()).
 		Set("external_id", vehicle.ExternalID).
 		Set("plate_number", vehicle.PlateNumber).
@@ -124,8 +124,8 @@ func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (
 		switch foreignKeyViolationConstraint(err) {
 		case "fk_vehicles_organization":
 			return model.Vehicle{}, model.NewError(model.ErrCodeOrganizationNotFound, err)
-		case "fk_vehicles_fleet":
-			return model.Vehicle{}, model.NewError(model.ErrCodeFleetNotFound, err)
+		case "fk_vehicles_group":
+			return model.Vehicle{}, model.NewError(model.ErrCodeGroupNotFound, err)
 		}
 		return model.Vehicle{}, fmt.Errorf("postgres: failed to update vehicle: %w", err)
 	}
@@ -157,7 +157,7 @@ func (r *VehicleRepository) Delete(ctx context.Context, id model.ID) error {
 
 // idPtrToStringPtr converts a nullable model.ID into a nullable string for
 // the driver — pgx encodes a nil *string as SQL NULL, matching vehicles'
-// nullable fleet_id column.
+// nullable group_id column (and groups' nullable parent_id column).
 func idPtrToStringPtr(id *model.ID) *string {
 	if id == nil {
 		return nil
@@ -171,20 +171,20 @@ func scanVehicle(row scannableRow) (model.Vehicle, error) {
 		v              model.Vehicle
 		id             string
 		organizationID string
-		fleetID        *string
+		groupID        *string
 		ivmsType       string
 	)
 
-	err := row.Scan(&id, &organizationID, &fleetID, &ivmsType, &v.ExternalID, &v.PlateNumber, &v.CreatedAt, &v.UpdatedAt)
+	err := row.Scan(&id, &organizationID, &groupID, &ivmsType, &v.ExternalID, &v.PlateNumber, &v.CreatedAt, &v.UpdatedAt)
 	if err != nil {
 		return model.Vehicle{}, err
 	}
 
 	v.ID = model.ID(id)
 	v.OrganizationID = model.ID(organizationID)
-	if fleetID != nil {
-		id := model.ID(*fleetID)
-		v.FleetID = &id
+	if groupID != nil {
+		id := model.ID(*groupID)
+		v.GroupID = &id
 	}
 	v.IVMSType = model.IVMSTypeFromString(ivmsType)
 
