@@ -10,8 +10,8 @@ import (
 
 // fetchGroup dedupes concurrent FetchThrough calls across the whole
 // application. It's a single global rather than one per caller because
-// dedup keys are already namespaced per resource (e.g. model.VechicleListKey
-// prefixes with "vehicle_list:"), so one Group safely serves every caller.
+// dedup keys are already namespaced per resource (e.g. model.AccountKey
+// prefixes with "account:"), so one Group safely serves every caller.
 var fetchGroup singleflight.Group
 
 // FetchThrough performs a cached, request-coalesced read: concurrent calls

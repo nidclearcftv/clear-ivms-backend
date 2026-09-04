@@ -9,15 +9,23 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
 )
 
-// VehicleRepository is the driven (secondary) port for reading vehicle
-// data from a data source. It is implemented by outbound adapters, e.g.
-// adapter/cmsv6.
+// VehicleRepository is the driven (secondary) port for persisting and
+// reading vehicle data. It is implemented by outbound adapters, e.g.
+// adapter/db/postgres.
 type VehicleRepository interface {
-	ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
+	Get(ctx context.Context, id model.ID) (model.Vehicle, error)
+	List(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
+	Delete(ctx context.Context, id model.ID) error
 }
 
 // VehicleService is the driving (primary) port exposing vehicle-related
 // business operations to inbound adapters, e.g. adapter/http controllers.
 type VehicleService interface {
-	ListVehicles(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
+	Get(ctx context.Context, id model.ID) (model.Vehicle, error)
+	List(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
+	Delete(ctx context.Context, id model.ID) error
 }

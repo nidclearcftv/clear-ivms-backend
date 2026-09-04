@@ -6,26 +6,22 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/nidclearcftv/clear-ivms-backend/adapter/cache/memory"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/db/postgres"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
-	repomanager "github.com/nidclearcftv/clear-ivms-backend/adapter/repo-manager"
 	"github.com/nidclearcftv/clear-ivms-backend/core/service"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/env"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/logger"
 )
 
 type Env struct {
-	CMSV6URL      string `env:"CMSV6_URL,required=true"`
-	CMSV6Username string `env:"CMSV6_USERNAME,required=true"`
-	CMSV6Password string `env:"CMSV6_PASSWORD,required=true"`
+	DatabaseURL            string `env:"DATABASE_URL,required=true"`
+	DatabaseSchemaPath     string `env:"DATABASE_SCHEMA_PATH,default=adapter/db/postgres/sql/schema.sql"`
+	DatabaseMigrationsPath string `env:"DATABASE_MIGRATIONS_PATH,default=adapter/db/postgres/sql/migrations"`
 
 	HTTPAddr           string   `env:"HTTP_ADDR,default=:8080"`
 	HTTPAllowedOrigins []string `env:"HTTP_ALLOWED_ORIGINS,separator=,"`
-
-	CacheDefaultExpiration time.Duration `env:"CACHE_DEFAULT_EXPIRATION,default=1m"`
 }
 
 type App struct {
@@ -50,39 +46,25 @@ func main() {
 		log.Fatalw("failed to load environment configuration", "error", err)
 	}
 
-	cmsv6Server, err := cmsv6.NewServer(cmsv6.Options{
-		Context:  ctx,
-		Logger:   log,
-		URL:      envOptions.CMSV6URL,
-		Username: envOptions.CMSV6Username,
-		Password: envOptions.CMSV6Password,
+	db, err := postgres.NewDB(ctx, postgres.Options{
+		Logger:           log,
+		ConnectionString: envOptions.DatabaseURL,
+		SchemaPath:       envOptions.DatabaseSchemaPath,
+		MigrationsPath:   envOptions.DatabaseMigrationsPath,
 	})
 	if err != nil {
-		log.Fatalw("failed to create cmsv6 server", "error", err)
+		log.Fatalw("failed to create database connection", "error", err)
 	}
-	defer cmsv6Server.Close()
+	defer db.Close()
 
-	if err := cmsv6Server.Start(); err != nil {
-		log.Fatalw("failed to start cmsv6 server", "error", err)
-	}
-
-	vehicleRepository, err := repomanager.NewVehicleRepository(repomanager.VehicleRepositoryOptions{
-		CMSV6: cmsv6Server,
-	})
-	if err != nil {
-		log.Fatalw("failed to create vehicle repository", "error", err)
+	if err := db.Initialize(ctx); err != nil {
+		log.Fatalw("failed to initialize database", "error", err)
 	}
 
-	vehicleCache, err := memory.NewCache(memory.Options{
-		DefaultExpiration: envOptions.CacheDefaultExpiration,
-	})
-	if err != nil {
-		log.Fatalw("failed to create vehicle cache", "error", err)
-	}
+	vehicleRepository := postgres.NewVehicleRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
-		Cache:      vehicleCache,
 	})
 	if err != nil {
 		log.Fatalw("failed to create vehicle service", "error", err)

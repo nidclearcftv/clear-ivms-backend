@@ -31,6 +31,9 @@ const (
 
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
+	// ErrCodeVehicleAlreadyExists means a vehicle with the same IVMS type and
+	// external ID (i.e. the same vendor-side device) is already registered.
+	ErrCodeVehicleAlreadyExists ErrorCode = 1002
 
 	// Account errors (resource 2).
 	ErrCodeAccountNotFound           ErrorCode = 2001
@@ -63,11 +66,12 @@ const (
 // errorMessages maps each ErrorCode to the human-readable, English message
 // returned in the API response's "message" field.
 var errorMessages = map[ErrorCode]string{
-	ErrCodeNone:            "success",
-	ErrCodeUnknown:         "an unexpected error occurred",
-	ErrCodeInvalidRequest:  "invalid request",
-	ErrCodeForbidden:       "you do not have access to this resource",
-	ErrCodeVehicleNotFound: "vehicle not found",
+	ErrCodeNone:                 "success",
+	ErrCodeUnknown:              "an unexpected error occurred",
+	ErrCodeInvalidRequest:       "invalid request",
+	ErrCodeForbidden:            "you do not have access to this resource",
+	ErrCodeVehicleNotFound:      "vehicle not found",
+	ErrCodeVehicleAlreadyExists: "a vehicle with this IVMS type and external ID already exists",
 
 	ErrCodeAccountNotFound:           "account not found",
 	ErrCodeAccountEmailAlreadyExists: "an account with this email already exists",

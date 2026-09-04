@@ -15,7 +15,7 @@ func registerVehicleRoutes(rg *gin.RouterGroup, vehicles port.VehicleService) {
 			return
 		}
 
-		list, err := vehicles.ListVehicles(c.Request.Context(), filters)
+		list, err := vehicles.List(c.Request.Context(), filters)
 		if err != nil {
 			RespondError(c, err)
 			return
