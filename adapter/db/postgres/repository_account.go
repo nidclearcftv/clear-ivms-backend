@@ -286,27 +286,32 @@ func (r *AccountRepository) ListSessions(ctx context.Context, accountID model.ID
 	return model.List[model.AccountSession]{Items: sessions, Total: len(sessions)}, nil
 }
 
-// accountSessionExists is the shared idempotency check used by
-// RevokeSession/RevokeSessionByToken: after an update-if-not-already-revoked
-// affects 0 rows, this distinguishes "doesn't exist" from "already revoked"
-// (both column and value are always internal, hardcoded constants — never
-// user input).
-func (r *AccountRepository) accountSessionExists(ctx context.Context, column, value string) (bool, error) {
+// existsInTable reports whether any row in table matches where. Column
+// names in where are always internal, hardcoded constants — never user
+// input.
+func (r *AccountRepository) existsInTable(ctx context.Context, table string, where sq.Eq) (bool, error) {
 	query, args, err := psql.Select("1").
-		From("account_sessions").
-		Where(sq.Eq{column: value}).
+		From(table).
+		Where(where).
 		Prefix("SELECT EXISTS (").
 		Suffix(")").
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("postgres: failed to build account session existence query: %w", err)
+		return false, fmt.Errorf("postgres: failed to build existence query: %w", err)
 	}
 
 	var exists bool
 	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&exists); err != nil {
-		return false, fmt.Errorf("postgres: failed to check account session existence: %w", err)
+		return false, fmt.Errorf("postgres: failed to check existence: %w", err)
 	}
 	return exists, nil
+}
+
+// accountSessionExists is the shared idempotency check used by
+// RevokeSession/RevokeSessionByToken: after an update-if-not-already-revoked
+// affects 0 rows, this distinguishes "doesn't exist" from "already revoked".
+func (r *AccountRepository) accountSessionExists(ctx context.Context, column, value string) (bool, error) {
+	return r.existsInTable(ctx, "account_sessions", sq.Eq{column: value})
 }
 
 // RevokeSession is idempotent: revoking an already-revoked session is a
@@ -418,6 +423,13 @@ func (r *AccountRepository) RevokeAllSessions(ctx context.Context, accountID mod
 	}
 
 	return tokenHashes, nil
+}
+
+func (r *AccountRepository) IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error) {
+	return r.existsInTable(ctx, "account_organizations", sq.Eq{
+		"account_id":      string(accountID),
+		"organization_id": string(organizationID),
+	})
 }
 
 func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error) {

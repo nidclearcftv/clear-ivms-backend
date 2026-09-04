@@ -47,6 +47,9 @@ type AccountRepository interface {
 	// reasoning as RevokeSession.
 	RevokeAllSessions(ctx context.Context, accountID model.ID) (tokenHashes []string, err error)
 
+	// IsMemberOfOrganization reports whether accountID belongs to
+	// organizationID.
+	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
@@ -90,6 +93,10 @@ type AccountService interface {
 	RevokeSession(ctx context.Context, id model.ID) error
 	RevokeAllSessions(ctx context.Context, accountID model.ID) error
 
+	// IsMemberOfOrganization reports whether accountID belongs to
+	// organizationID. Cached (see Authenticate above for why), invalidated
+	// by AddOrganization/RemoveOrganization.
+	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error

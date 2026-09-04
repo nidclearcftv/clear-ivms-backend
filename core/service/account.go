@@ -239,16 +239,43 @@ func (s *AccountService) RevokeAllSessions(ctx context.Context, accountID model.
 	return nil
 }
 
+// IsMemberOfOrganization is cached, same reasoning as Authenticate's
+// account/session lookups: adapter/http's auth middleware calls this on
+// every request scoped to an organization. AddOrganization/RemoveOrganization
+// invalidate the entry this populates.
+func (s *AccountService) IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error) {
+	return utils.FetchThrough(ctx, s.cache, model.AccountOrganizationMemberKey(accountID, organizationID), func() (bool, error) {
+		return s.repo.IsMemberOfOrganization(ctx, accountID, organizationID)
+	})
+}
+
 func (s *AccountService) ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error) {
 	return s.repo.ListFromOrganization(ctx, organizationID)
 }
 
+// AddOrganization invalidates the cache entry IsMemberOfOrganization
+// populates, so the new membership is visible on the very next check
+// instead of waiting out the cache's expiration.
 func (s *AccountService) AddOrganization(ctx context.Context, accountID, organizationID model.ID) error {
-	return s.repo.AddOrganization(ctx, accountID, organizationID)
+	if err := s.repo.AddOrganization(ctx, accountID, organizationID); err != nil {
+		return err
+	}
+
+	s.cache.Del(ctx, model.AccountOrganizationMemberKey(accountID, organizationID))
+
+	return nil
 }
 
+// RemoveOrganization invalidates the cache entry IsMemberOfOrganization
+// populates; see AddOrganization.
 func (s *AccountService) RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error {
-	return s.repo.RemoveOrganization(ctx, accountID, organizationID)
+	if err := s.repo.RemoveOrganization(ctx, accountID, organizationID); err != nil {
+		return err
+	}
+
+	s.cache.Del(ctx, model.AccountOrganizationMemberKey(accountID, organizationID))
+
+	return nil
 }
 
 func (s *AccountService) ListFromTeam(ctx context.Context, teamID model.ID) (model.List[model.Account], error) {

@@ -36,3 +36,9 @@ func (f *AccountFilters) String() string {
 func AccountKey(id ID) string {
 	return "account:" + string(id)
 }
+
+// AccountOrganizationMemberKey caches whether an account belongs to an
+// organization (see AccountService.IsMemberOfOrganization).
+func AccountOrganizationMemberKey(accountID, organizationID ID) string {
+	return "account_organization_member:" + string(accountID) + ":" + string(organizationID)
+}
