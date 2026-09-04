@@ -13,8 +13,8 @@ import (
 // contextAccount without hitting the database again.
 const ginContextAccountKey = "auth.account"
 
-// orgIDQueryKey is the query string key authMiddleware looks for to scope
-// a request to an organization, e.g. "?orgId=...".
+// orgIDQueryKey is the query string key requireOrganizationMiddleware
+// looks for to scope a request to an organization, e.g. "?orgId=...".
 const orgIDQueryKey = "orgId"
 
 // authMiddleware validates the session cookie and, on success, makes the
@@ -22,18 +22,10 @@ const orgIDQueryKey = "orgId"
 // onto the request's context (see utils.AccountID, read by anything the
 // request's context reaches — services, repositories, ...), and the full
 // model.Account is stored on the gin.Context (see contextAccount) so
-// handlers in this package can use it without a second lookup.
+// handlers in this package — including requireOrganizationMiddleware
+// below — can use it without a second lookup.
 //
-// If the request has an "?orgId=" query param, the account must either be
-// an admin (model.AccountTypeAdmin, which bypasses the check — an
-// org_admin does not) or belong to that organization; otherwise the
-// request is rejected with ErrCodeForbidden. On success the organization
-// ID is added to the context too (see utils.OrganizationID), same as
-// AccountID — this is what lets TeamService/FleetService.List scope to it
-// automatically. Requests with no "orgId" query param skip this check
-// entirely.
-//
-// On any failure, it aborts the request with the mapped error status;
+// On failure, it aborts the request with the mapped error status;
 // downstream handlers never run.
 //
 // Not applied to any route by default — register it explicitly per route
@@ -54,29 +46,61 @@ func authMiddleware(accounts port.AccountService) gin.HandlerFunc {
 			return
 		}
 
-		ctx := utils.WithAccountID(c.Request.Context(), account.ID)
-
-		if orgID := model.ID(c.Query(orgIDQueryKey)); orgID != "" {
-			if account.Type != model.AccountTypeAdmin {
-				member, err := accounts.IsMemberOfOrganization(ctx, account.ID, orgID)
-				if err != nil {
-					RespondError(c, err)
-					c.Abort()
-					return
-				}
-				if !member {
-					Fail(c, model.ErrCodeForbidden)
-					c.Abort()
-					return
-				}
-			}
-
-			ctx = utils.WithOrganizationID(ctx, orgID)
-		}
-
-		c.Request = c.Request.WithContext(ctx)
+		c.Request = c.Request.WithContext(utils.WithAccountID(c.Request.Context(), account.ID))
 		c.Set(ginContextAccountKey, account)
 
+		c.Next()
+	}
+}
+
+// requireOrganizationMiddleware must run after authMiddleware — it reads
+// the account authMiddleware attaches via contextAccount, and rejects the
+// request with ErrCodeUnknown if that's missing (a wiring error: the two
+// were not chained correctly).
+//
+// It requires an "?orgId=" query param, rejecting the request with
+// ErrCodeInvalidRequest if it's absent — unlike authMiddleware's old
+// inline version of this check, organization scoping is mandatory on any
+// route this is applied to. Unless the account is an admin
+// (model.AccountTypeAdmin — org_admin does not bypass this), the account
+// must belong to that organization or the request is rejected with
+// ErrCodeForbidden. On success the organization ID is added to the
+// context (see utils.OrganizationID), which is what lets
+// TeamService/FleetService.List scope to it automatically.
+//
+// Not applied to any route by default — register it explicitly, after
+// authMiddleware, per route or route group.
+func requireOrganizationMiddleware(accounts port.AccountService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orgID := model.ID(c.Query(orgIDQueryKey))
+		if orgID == "" {
+			Fail(c, model.ErrCodeInvalidRequest, "missing required query parameter: "+orgIDQueryKey)
+			c.Abort()
+			return
+		}
+
+		account, ok := contextAccount(c)
+		if !ok {
+			Fail(c, model.ErrCodeUnknown)
+			c.Abort()
+			return
+		}
+
+		if account.Type != model.AccountTypeAdmin {
+			member, err := accounts.IsMemberOfOrganization(c.Request.Context(), account.ID, orgID)
+			if err != nil {
+				RespondError(c, err)
+				c.Abort()
+				return
+			}
+			if !member {
+				Fail(c, model.ErrCodeForbidden)
+				c.Abort()
+				return
+			}
+		}
+
+		c.Request = c.Request.WithContext(utils.WithOrganizationID(c.Request.Context(), orgID))
 		c.Next()
 	}
 }
