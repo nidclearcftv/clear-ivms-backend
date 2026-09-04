@@ -34,18 +34,29 @@ type Options struct {
 
 	Addr string `validate:"required"`
 
-	// VehicleService backs the /api/v1/vehicles route.
+	// VehicleService backs the /api/v1/vehicles routes, restricted to
+	// admins and org_admins of the request's organization (see
+	// requireOrganizationMiddleware/requireRolesMiddleware). Registered
+	// only once AccountService is also set — see AccountService.
 	VehicleService port.VehicleService `validate:"required"`
 
-	// AccountService backs the /api/v1/login and /api/v1/logout routes.
-	// Optional: if nil, those routes aren't registered at all — there's no
-	// Postgres-backed AccountService wired into main.go yet.
+	// AccountService backs the /api/v1/login and /api/v1/logout routes,
+	// and gates every other route that requires authentication (vehicles,
+	// organizations, groups, ...). Optional: if nil, none of those routes
+	// are registered at all — there's no Postgres-backed AccountService
+	// wired into main.go yet.
 	AccountService port.AccountService
 
 	// OrganizationService backs the admin-only /api/v1/organizations
 	// routes. Optional: if nil (or AccountService is), those routes aren't
 	// registered at all.
 	OrganizationService port.OrganizationService
+
+	// GroupService backs the /api/v1/groups routes, restricted to admins
+	// and org_admins of the request's organization (see
+	// requireOrganizationMiddleware/requireRolesMiddleware). Optional: if
+	// nil (or AccountService is), those routes aren't registered at all.
+	GroupService port.GroupService
 
 	// AllowedOrigins is the CORS allow-list. Leave empty to disable CORS
 	// entirely: cross-origin browser requests are blocked (the safe
@@ -126,12 +137,16 @@ func NewServer(opts Options) (*Server, error) {
 
 	v1 := engine.Group(apiV1Prefix)
 	registerStatusRoutes(v1)
-	registerVehicleRoutes(v1, opts.VehicleService)
 	if opts.AccountService != nil {
 		registerAuthRoutes(v1, opts.AccountService)
+		registerVehicleRoutes(v1, opts.VehicleService, opts.AccountService)
 
 		if opts.OrganizationService != nil {
 			registerOrganizationRoutes(v1, opts.OrganizationService, opts.AccountService)
+		}
+
+		if opts.GroupService != nil {
+			registerGroupRoutes(v1, opts.GroupService, opts.AccountService)
 		}
 	}
 

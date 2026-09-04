@@ -68,7 +68,7 @@ func authMiddleware(accounts port.AccountService) gin.HandlerFunc {
 // must belong to that organization or the request is rejected with
 // ErrCodeForbidden. On success the organization ID is added to the
 // context (see utils.OrganizationID), which is what lets
-// TeamService/FleetService.List scope to it automatically.
+// GroupService.List scope to it automatically.
 //
 // Not applied to any route by default — register it explicitly, after
 // authMiddleware, per route or route group.
