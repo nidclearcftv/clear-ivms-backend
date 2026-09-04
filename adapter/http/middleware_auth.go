@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"slices"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
@@ -101,6 +103,37 @@ func requireOrganizationMiddleware(accounts port.AccountService) gin.HandlerFunc
 		}
 
 		c.Request = c.Request.WithContext(utils.WithOrganizationID(c.Request.Context(), orgID))
+		c.Next()
+	}
+}
+
+// requireRolesMiddleware must run after authMiddleware — it reads the
+// account authMiddleware attaches via contextAccount, and rejects the
+// request with ErrCodeUnknown if that's missing (a wiring error: the two
+// were not chained correctly).
+//
+// The account's type must be one of allowed, or the request is rejected
+// with ErrCodeForbidden. model.AccountTypeAdmin is always permitted, even
+// if not listed in allowed — it's the one role that bypasses every
+// role check.
+//
+// Not applied to any route by default — register it explicitly, after
+// authMiddleware, per route or route group.
+func requireRolesMiddleware(allowed ...model.AccountType) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		account, ok := contextAccount(c)
+		if !ok {
+			Fail(c, model.ErrCodeUnknown)
+			c.Abort()
+			return
+		}
+
+		if account.Type != model.AccountTypeAdmin && !slices.Contains(allowed, account.Type) {
+			Fail(c, model.ErrCodeForbidden)
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }
