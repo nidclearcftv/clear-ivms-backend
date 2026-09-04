@@ -32,3 +32,11 @@ func newAccountDTO(a model.Account) AccountDTO {
 		UpdatedAt:   a.UpdatedAt,
 	}
 }
+
+func newAccountListDTO(list model.List[model.Account]) ListDTO[AccountDTO] {
+	items := make([]AccountDTO, len(list.Items))
+	for i, a := range list.Items {
+		items[i] = newAccountDTO(a)
+	}
+	return ListDTO[AccountDTO]{Items: items, Total: list.Total}
+}

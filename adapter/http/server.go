@@ -42,6 +42,11 @@ type Options struct {
 	// Postgres-backed AccountService wired into main.go yet.
 	AccountService port.AccountService
 
+	// OrganizationService backs the admin-only /api/v1/organizations
+	// routes. Optional: if nil (or AccountService is), those routes aren't
+	// registered at all.
+	OrganizationService port.OrganizationService
+
 	// AllowedOrigins is the CORS allow-list. Leave empty to disable CORS
 	// entirely: cross-origin browser requests are blocked (the safe
 	// default), same-origin and non-browser clients are unaffected.
@@ -124,6 +129,10 @@ func NewServer(opts Options) (*Server, error) {
 	registerVehicleRoutes(v1, opts.VehicleService)
 	if opts.AccountService != nil {
 		registerAuthRoutes(v1, opts.AccountService)
+
+		if opts.OrganizationService != nil {
+			registerOrganizationRoutes(v1, opts.OrganizationService, opts.AccountService)
+		}
 	}
 
 	return &Server{
