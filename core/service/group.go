@@ -46,6 +46,12 @@ func (s *GroupService) List(ctx context.Context, filters model.GroupFilters) (mo
 	return s.repo.List(ctx, filters)
 }
 
+// Count scopes the same way List does.
+func (s *GroupService) Count(ctx context.Context, filters model.GroupFilters) (int, error) {
+	filters.OrganizationID = utils.OrganizationID(ctx)
+	return s.repo.Count(ctx, filters)
+}
+
 func (s *GroupService) Update(ctx context.Context, group model.Group) (model.Group, error) {
 	return s.repo.Update(ctx, group)
 }
@@ -56,6 +62,10 @@ func (s *GroupService) Delete(ctx context.Context, id model.ID) error {
 
 func (s *GroupService) ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error) {
 	return s.repo.ListFromAccount(ctx, accountID)
+}
+
+func (s *GroupService) CountFromAccount(ctx context.Context, accountID model.ID) (int, error) {
+	return s.repo.CountFromAccount(ctx, accountID)
 }
 
 // AddAccount rejects accounts that aren't model.AccountTypeUser with

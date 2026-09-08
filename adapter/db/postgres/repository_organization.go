@@ -81,7 +81,32 @@ func (r *OrganizationRepository) List(ctx context.Context, filters model.Organiz
 	}
 	defer rows.Close()
 
-	return scanOrganizationList(rows)
+	list, err := scanOrganizationList(rows)
+	if err != nil {
+		return model.List[model.Organization]{}, err
+	}
+
+	total, err := r.Count(ctx, filters)
+	if err != nil {
+		return model.List[model.Organization]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// Count ignores filters for now, same reason as List.
+func (r *OrganizationRepository) Count(ctx context.Context, filters model.OrganizationFilters) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").From("organizations").ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count organizations query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count organizations: %w", err)
+	}
+	return count, nil
 }
 
 func (r *OrganizationRepository) Update(ctx context.Context, organization model.Organization) (model.Organization, error) {
@@ -152,7 +177,36 @@ func (r *OrganizationRepository) ListFromAccount(ctx context.Context, accountID 
 	}
 	defer rows.Close()
 
-	return scanOrganizationList(rows)
+	list, err := scanOrganizationList(rows)
+	if err != nil {
+		return model.List[model.Organization]{}, err
+	}
+
+	total, err := r.CountFromAccount(ctx, accountID)
+	if err != nil {
+		return model.List[model.Organization]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// CountFromAccount is to ListFromAccount what Count is to List.
+func (r *OrganizationRepository) CountFromAccount(ctx context.Context, accountID model.ID) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").
+		From("organizations o").
+		Join("account_organizations ao ON ao.organization_id = o.id").
+		Where(sq.Eq{"ao.account_id": string(accountID)}).
+		ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count organizations from account query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count organizations from account: %w", err)
+	}
+	return count, nil
 }
 
 // AddAccount is idempotent: adding an account that already belongs to the

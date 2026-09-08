@@ -70,13 +70,7 @@ func (r *GroupRepository) Get(ctx context.Context, id model.ID) (model.Group, er
 }
 
 func (r *GroupRepository) List(ctx context.Context, filters model.GroupFilters) (model.List[model.Group], error) {
-	builder := psql.Select(groupColumns...).
-		From("groups").
-		OrderBy("created_at DESC")
-
-	if filters.OrganizationID != "" {
-		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
-	}
+	builder := applyGroupFilters(psql.Select(groupColumns...).From("groups").OrderBy("created_at DESC"), filters)
 
 	query, args, err := builder.ToSql()
 	if err != nil {
@@ -89,7 +83,43 @@ func (r *GroupRepository) List(ctx context.Context, filters model.GroupFilters) 
 	}
 	defer rows.Close()
 
-	return scanGroupList(rows)
+	list, err := scanGroupList(rows)
+	if err != nil {
+		return model.List[model.Group]{}, err
+	}
+
+	total, err := r.Count(ctx, filters)
+	if err != nil {
+		return model.List[model.Group]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// Count reports how many groups match filters — the same filters List
+// accepts. List uses this to fill model.List.Total.
+func (r *GroupRepository) Count(ctx context.Context, filters model.GroupFilters) (int, error) {
+	builder := applyGroupFilters(psql.Select("COUNT(*)").From("groups"), filters)
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count groups query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count groups: %w", err)
+	}
+	return count, nil
+}
+
+// applyGroupFilters applies filters shared by List and Count.
+func applyGroupFilters(builder sq.SelectBuilder, filters model.GroupFilters) sq.SelectBuilder {
+	if filters.OrganizationID != "" {
+		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
+	}
+	return builder
 }
 
 func (r *GroupRepository) Update(ctx context.Context, group model.Group) (model.Group, error) {
@@ -162,7 +192,36 @@ func (r *GroupRepository) ListFromAccount(ctx context.Context, accountID model.I
 	}
 	defer rows.Close()
 
-	return scanGroupList(rows)
+	list, err := scanGroupList(rows)
+	if err != nil {
+		return model.List[model.Group]{}, err
+	}
+
+	total, err := r.CountFromAccount(ctx, accountID)
+	if err != nil {
+		return model.List[model.Group]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// CountFromAccount is to ListFromAccount what Count is to List.
+func (r *GroupRepository) CountFromAccount(ctx context.Context, accountID model.ID) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").
+		From("groups g").
+		Join("account_groups ag ON ag.group_id = g.id").
+		Where(sq.Eq{"ag.account_id": string(accountID)}).
+		ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count groups from account query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count groups from account: %w", err)
+	}
+	return count, nil
 }
 
 // AddAccount is idempotent: adding an account that's already a member is a

@@ -68,6 +68,10 @@ func (s *AccountService) List(ctx context.Context, filters model.AccountFilters)
 	return s.repo.List(ctx, filters)
 }
 
+func (s *AccountService) Count(ctx context.Context, filters model.AccountFilters) (int, error) {
+	return s.repo.Count(ctx, filters)
+}
+
 // Update invalidates the cache entry Authenticate populates for this
 // account, so a change (e.g. Blocked) takes effect on the next
 // authenticated request instead of waiting out the cache's expiration.
@@ -208,6 +212,10 @@ func (s *AccountService) ListSessions(ctx context.Context, accountID model.ID) (
 	return s.repo.ListSessions(ctx, accountID)
 }
 
+func (s *AccountService) CountSessions(ctx context.Context, accountID model.ID) (int, error) {
+	return s.repo.CountSessions(ctx, accountID)
+}
+
 // RevokeSession invalidates the cache entry Authenticate populates for the
 // revoked session, using the token hash the repository hands back — the
 // gap noted in Authenticate's docs is closed now that it's available.
@@ -253,6 +261,10 @@ func (s *AccountService) ListFromOrganization(ctx context.Context, organizationI
 	return s.repo.ListFromOrganization(ctx, organizationID)
 }
 
+func (s *AccountService) CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error) {
+	return s.repo.CountFromOrganization(ctx, organizationID)
+}
+
 // AddOrganization invalidates the cache entry IsMemberOfOrganization
 // populates, so the new membership is visible on the very next check
 // instead of waiting out the cache's expiration.
@@ -280,6 +292,10 @@ func (s *AccountService) RemoveOrganization(ctx context.Context, accountID, orga
 
 func (s *AccountService) ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error) {
 	return s.repo.ListFromGroup(ctx, groupID)
+}
+
+func (s *AccountService) CountFromGroup(ctx context.Context, groupID model.ID) (int, error) {
+	return s.repo.CountFromGroup(ctx, groupID)
 }
 
 // AddGroup rejects accounts that aren't model.AccountTypeUser with

@@ -77,12 +77,7 @@ func (r *VehicleRepository) List(ctx context.Context, filters model.VehicleFilte
 		From("vehicles").
 		OrderBy("created_at DESC")
 
-	if filters.OrganizationID != "" {
-		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
-	}
-	if filters.GroupID != "" {
-		builder = builder.Where(sq.Eq{"group_id": string(filters.GroupID)})
-	}
+	builder = applyVehicleFilters(builder, filters)
 
 	query, args, err := builder.ToSql()
 	if err != nil {
@@ -95,7 +90,46 @@ func (r *VehicleRepository) List(ctx context.Context, filters model.VehicleFilte
 	}
 	defer rows.Close()
 
-	return scanVehicleList(rows)
+	list, err := scanVehicleList(rows)
+	if err != nil {
+		return model.List[model.Vehicle]{}, err
+	}
+
+	total, err := r.Count(ctx, filters)
+	if err != nil {
+		return model.List[model.Vehicle]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// Count reports how many vehicles match filters — the same filters List
+// accepts. List uses this to fill model.List.Total.
+func (r *VehicleRepository) Count(ctx context.Context, filters model.VehicleFilters) (int, error) {
+	builder := applyVehicleFilters(psql.Select("COUNT(*)").From("vehicles"), filters)
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count vehicles query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count vehicles: %w", err)
+	}
+	return count, nil
+}
+
+// applyVehicleFilters applies filters shared by List and Count.
+func applyVehicleFilters(builder sq.SelectBuilder, filters model.VehicleFilters) sq.SelectBuilder {
+	if filters.OrganizationID != "" {
+		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
+	}
+	if filters.GroupID != "" {
+		builder = builder.Where(sq.Eq{"group_id": string(filters.GroupID)})
+	}
+	return builder
 }
 
 func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {

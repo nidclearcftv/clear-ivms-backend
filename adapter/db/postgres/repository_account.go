@@ -82,7 +82,32 @@ func (r *AccountRepository) List(ctx context.Context, filters model.AccountFilte
 	}
 	defer rows.Close()
 
-	return scanAccountList(rows)
+	list, err := scanAccountList(rows)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+
+	total, err := r.Count(ctx, filters)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// Count ignores filters for now, same reason as List.
+func (r *AccountRepository) Count(ctx context.Context, filters model.AccountFilters) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").From("accounts").ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count accounts query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count accounts: %w", err)
+	}
+	return count, nil
 }
 
 func (r *AccountRepository) Update(ctx context.Context, account model.Account) (model.Account, error) {
@@ -283,7 +308,29 @@ func (r *AccountRepository) ListSessions(ctx context.Context, accountID model.ID
 		return model.List[model.AccountSession]{}, fmt.Errorf("postgres: failed to list account sessions: %w", err)
 	}
 
-	return model.List[model.AccountSession]{Items: sessions, Total: len(sessions)}, nil
+	total, err := r.CountSessions(ctx, accountID)
+	if err != nil {
+		return model.List[model.AccountSession]{}, err
+	}
+
+	return model.List[model.AccountSession]{Items: sessions, Total: total}, nil
+}
+
+// CountSessions is to ListSessions what Count is to List.
+func (r *AccountRepository) CountSessions(ctx context.Context, accountID model.ID) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").
+		From("account_sessions").
+		Where(sq.Eq{"account_id": string(accountID)}).
+		ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count account sessions query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count account sessions: %w", err)
+	}
+	return count, nil
 }
 
 // existsInTable reports whether any row in table matches where. Column
@@ -449,7 +496,36 @@ func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizati
 	}
 	defer rows.Close()
 
-	return scanAccountList(rows)
+	list, err := scanAccountList(rows)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+
+	total, err := r.CountFromOrganization(ctx, organizationID)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// CountFromOrganization is to ListFromOrganization what Count is to List.
+func (r *AccountRepository) CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").
+		From("accounts a").
+		Join("account_organizations ao ON ao.account_id = a.id").
+		Where(sq.Eq{"ao.organization_id": string(organizationID)}).
+		ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count accounts from organization query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count accounts from organization: %w", err)
+	}
+	return count, nil
 }
 
 // AddOrganization is idempotent: adding an account to an organization it
@@ -503,7 +579,36 @@ func (r *AccountRepository) ListFromGroup(ctx context.Context, groupID model.ID)
 	}
 	defer rows.Close()
 
-	return scanAccountList(rows)
+	list, err := scanAccountList(rows)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+
+	total, err := r.CountFromGroup(ctx, groupID)
+	if err != nil {
+		return model.List[model.Account]{}, err
+	}
+	list.Total = total
+
+	return list, nil
+}
+
+// CountFromGroup is to ListFromGroup what Count is to List.
+func (r *AccountRepository) CountFromGroup(ctx context.Context, groupID model.ID) (int, error) {
+	query, args, err := psql.Select("COUNT(*)").
+		From("accounts a").
+		Join("account_groups ag ON ag.account_id = a.id").
+		Where(sq.Eq{"ag.group_id": string(groupID)}).
+		ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("postgres: failed to build count accounts from group query: %w", err)
+	}
+
+	var count int
+	if err := r.db.Pool.QueryRow(ctx, query, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("postgres: failed to count accounts from group: %w", err)
+	}
+	return count, nil
 }
 
 // AddGroup is idempotent: adding an account to a group it already belongs

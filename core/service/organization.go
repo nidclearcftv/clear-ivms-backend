@@ -38,6 +38,10 @@ func (s *OrganizationService) List(ctx context.Context, filters model.Organizati
 	return s.repo.List(ctx, filters)
 }
 
+func (s *OrganizationService) Count(ctx context.Context, filters model.OrganizationFilters) (int, error) {
+	return s.repo.Count(ctx, filters)
+}
+
 func (s *OrganizationService) Update(ctx context.Context, organization model.Organization) (model.Organization, error) {
 	return s.repo.Update(ctx, organization)
 }
@@ -48,6 +52,10 @@ func (s *OrganizationService) Delete(ctx context.Context, id model.ID) error {
 
 func (s *OrganizationService) ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Organization], error) {
 	return s.repo.ListFromAccount(ctx, accountID)
+}
+
+func (s *OrganizationService) CountFromAccount(ctx context.Context, accountID model.ID) (int, error) {
+	return s.repo.CountFromAccount(ctx, accountID)
 }
 
 func (s *OrganizationService) AddAccount(ctx context.Context, organizationID, accountID model.ID) error {

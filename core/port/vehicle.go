@@ -16,6 +16,9 @@ type VehicleRepository interface {
 	Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Get(ctx context.Context, id model.ID) (model.Vehicle, error)
 	List(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	// Count reports how many vehicles match filters — the same filters
+	// List accepts. List uses this to fill model.List.Total.
+	Count(ctx context.Context, filters model.VehicleFilters) (int, error)
 	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Delete(ctx context.Context, id model.ID) error
 }
@@ -26,6 +29,7 @@ type VehicleService interface {
 	Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Get(ctx context.Context, id model.ID) (model.Vehicle, error)
 	List(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error)
+	Count(ctx context.Context, filters model.VehicleFilters) (int, error)
 	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Delete(ctx context.Context, id model.ID) error
 }

@@ -22,6 +22,9 @@ type AccountRepository interface {
 	Create(ctx context.Context, account model.Account, passwordHash string) (model.Account, error)
 	Get(ctx context.Context, id model.ID) (model.Account, error)
 	List(ctx context.Context, filters model.AccountFilters) (model.List[model.Account], error)
+	// Count reports how many accounts match filters — the same filters
+	// List accepts. List uses this to fill model.List.Total.
+	Count(ctx context.Context, filters model.AccountFilters) (int, error)
 	Update(ctx context.Context, account model.Account) (model.Account, error)
 	Delete(ctx context.Context, id model.ID) error
 	GetPassword(ctx context.Context, id model.ID) (string, error)
@@ -34,6 +37,8 @@ type AccountRepository interface {
 	CreateSession(ctx context.Context, session model.AccountSession) (model.AccountSession, error)
 	GetSession(ctx context.Context, tokenHash string) (model.AccountSession, error)
 	ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error)
+	// CountSessions is to ListSessions what Count is to List.
+	CountSessions(ctx context.Context, accountID model.ID) (int, error)
 	// RevokeSession returns the revoked session's token hash (or "" if it
 	// was already revoked — nothing new happened), so AccountService can
 	// invalidate whatever it caches sessions under (see
@@ -51,10 +56,15 @@ type AccountRepository interface {
 	// organizationID.
 	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
+	// CountFromOrganization is to ListFromOrganization what Count is to
+	// List.
+	CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
 
 	ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error)
+	// CountFromGroup is to ListFromGroup what Count is to List.
+	CountFromGroup(ctx context.Context, groupID model.ID) (int, error)
 	AddGroup(ctx context.Context, accountID, groupID model.ID) error
 	RemoveGroup(ctx context.Context, accountID, groupID model.ID) error
 }
@@ -65,6 +75,7 @@ type AccountService interface {
 	Create(ctx context.Context, account model.Account, passwordHash string) (model.Account, error)
 	Get(ctx context.Context, id model.ID) (model.Account, error)
 	List(ctx context.Context, filters model.AccountFilters) (model.List[model.Account], error)
+	Count(ctx context.Context, filters model.AccountFilters) (int, error)
 	Update(ctx context.Context, account model.Account) (model.Account, error)
 	Delete(ctx context.Context, id model.ID) error
 	GetPassword(ctx context.Context, id model.ID) (string, error)
@@ -90,6 +101,7 @@ type AccountService interface {
 	CreateSession(ctx context.Context, session model.AccountSession) (model.AccountSession, error)
 	GetSession(ctx context.Context, tokenHash string) (model.AccountSession, error)
 	ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error)
+	CountSessions(ctx context.Context, accountID model.ID) (int, error)
 	RevokeSession(ctx context.Context, id model.ID) error
 	RevokeAllSessions(ctx context.Context, accountID model.ID) error
 
@@ -98,10 +110,12 @@ type AccountService interface {
 	// by AddOrganization/RemoveOrganization.
 	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
+	CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
 
 	ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error)
+	CountFromGroup(ctx context.Context, groupID model.ID) (int, error)
 	// AddGroup fails with ErrCodeAccountTypeNotAllowedInGroup unless
 	// accountID's type is model.AccountTypeUser — admins and org_admins
 	// already have broader access and aren't meant to be scoped to a

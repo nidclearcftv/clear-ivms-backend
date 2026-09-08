@@ -16,10 +16,15 @@ type GroupRepository interface {
 	Create(ctx context.Context, group model.Group) (model.Group, error)
 	Get(ctx context.Context, id model.ID) (model.Group, error)
 	List(ctx context.Context, filters model.GroupFilters) (model.List[model.Group], error)
+	// Count reports how many groups match filters — the same filters List
+	// accepts. List uses this to fill model.List.Total.
+	Count(ctx context.Context, filters model.GroupFilters) (int, error)
 	Update(ctx context.Context, group model.Group) (model.Group, error)
 	Delete(ctx context.Context, id model.ID) error
 
 	ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error)
+	// CountFromAccount is to ListFromAccount what Count is to List.
+	CountFromAccount(ctx context.Context, accountID model.ID) (int, error)
 	AddAccount(ctx context.Context, groupID, accountID model.ID) error
 	RemoveAccount(ctx context.Context, groupID, accountID model.ID) error
 }
@@ -30,10 +35,12 @@ type GroupService interface {
 	Create(ctx context.Context, group model.Group) (model.Group, error)
 	Get(ctx context.Context, id model.ID) (model.Group, error)
 	List(ctx context.Context, filters model.GroupFilters) (model.List[model.Group], error)
+	Count(ctx context.Context, filters model.GroupFilters) (int, error)
 	Update(ctx context.Context, group model.Group) (model.Group, error)
 	Delete(ctx context.Context, id model.ID) error
 
 	ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error)
+	CountFromAccount(ctx context.Context, accountID model.ID) (int, error)
 	// AddAccount fails with ErrCodeAccountTypeNotAllowedInGroup unless
 	// accountID's type is model.AccountTypeUser — admins and org_admins
 	// already have broader access and aren't meant to be scoped to a

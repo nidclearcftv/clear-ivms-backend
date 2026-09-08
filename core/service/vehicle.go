@@ -45,6 +45,12 @@ func (s *VehicleService) List(ctx context.Context, filters model.VehicleFilters)
 	return s.repo.List(ctx, filters)
 }
 
+// Count scopes the same way List does.
+func (s *VehicleService) Count(ctx context.Context, filters model.VehicleFilters) (int, error) {
+	filters.OrganizationID = utils.OrganizationID(ctx)
+	return s.repo.Count(ctx, filters)
+}
+
 func (s *VehicleService) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	return s.repo.Update(ctx, vehicle)
 }
