@@ -38,6 +38,9 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeInvalidCredentials:           http.StatusUnauthorized,
 	model.ErrCodeAccountBlocked:               http.StatusForbidden,
 	model.ErrCodeAccountTypeNotAllowedInGroup: http.StatusBadRequest,
+
+	model.ErrCodeBrandingNotFound:            http.StatusNotFound,
+	model.ErrCodeBrandingDomainAlreadyExists: http.StatusConflict,
 }
 
 func statusForCode(code model.ErrorCode) int {

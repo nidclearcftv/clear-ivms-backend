@@ -61,6 +61,12 @@ const (
 
 	// Group errors (resource 5).
 	ErrCodeGroupNotFound ErrorCode = 5001
+
+	// Branding errors (resource 6).
+	ErrCodeBrandingNotFound ErrorCode = 6001
+	// ErrCodeBrandingDomainAlreadyExists means another branding already
+	// uses this domain (see the brandings.domain UNIQUE constraint).
+	ErrCodeBrandingDomainAlreadyExists ErrorCode = 6002
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -86,6 +92,9 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeOrganizationHasAccounts: "organization still has one or more accounts",
 
 	ErrCodeGroupNotFound: "group not found",
+
+	ErrCodeBrandingNotFound:            "branding not found",
+	ErrCodeBrandingDomainAlreadyExists: "a branding for this domain already exists",
 }
 
 // MessageForCode returns the registered message for code, falling back to

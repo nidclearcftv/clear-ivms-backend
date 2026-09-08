@@ -98,3 +98,12 @@ CREATE TABLE vehicles (
 
 CREATE INDEX idx_vehicles_organization ON vehicles (organization_id);
 CREATE INDEX idx_vehicles_group ON vehicles (group_id);
+
+CREATE TABLE brandings (
+    id          UUID        PRIMARY KEY DEFAULT uuidv7(),
+    name        TEXT        NOT NULL,
+    domain      TEXT        NOT NULL UNIQUE,
+    config      JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
