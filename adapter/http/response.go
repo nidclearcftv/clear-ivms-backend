@@ -33,10 +33,11 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeVehicleNotFound:      http.StatusNotFound,
 	model.ErrCodeVehicleAlreadyExists: http.StatusConflict,
 
-	model.ErrCodeAccountNotFound:        http.StatusNotFound,
-	model.ErrCodeAccountSessionNotFound: http.StatusNotFound,
-	model.ErrCodeInvalidCredentials:     http.StatusUnauthorized,
-	model.ErrCodeAccountBlocked:         http.StatusForbidden,
+	model.ErrCodeAccountNotFound:              http.StatusNotFound,
+	model.ErrCodeAccountSessionNotFound:       http.StatusNotFound,
+	model.ErrCodeInvalidCredentials:           http.StatusUnauthorized,
+	model.ErrCodeAccountBlocked:               http.StatusForbidden,
+	model.ErrCodeAccountTypeNotAllowedInGroup: http.StatusBadRequest,
 }
 
 func statusForCode(code model.ErrorCode) int {

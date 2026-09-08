@@ -68,6 +68,18 @@ CREATE TABLE groups (
 CREATE INDEX idx_groups_organization ON groups (organization_id);
 CREATE INDEX idx_groups_parent ON groups (parent_id);
 
+CREATE TABLE account_groups (
+    account_id UUID NOT NULL,
+    group_id   UUID NOT NULL,
+    PRIMARY KEY (account_id, group_id),
+
+    CONSTRAINT fk_account_groups_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_account_groups_group FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_account_groups_account ON account_groups (account_id);
+CREATE INDEX idx_account_groups_group ON account_groups (group_id);
+
 CREATE TABLE vehicles (
     id              UUID        PRIMARY KEY DEFAULT uuidv7(),
     organization_id UUID        NOT NULL,

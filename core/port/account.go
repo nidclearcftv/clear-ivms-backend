@@ -53,6 +53,10 @@ type AccountRepository interface {
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
+
+	ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error)
+	AddGroup(ctx context.Context, accountID, groupID model.ID) error
+	RemoveGroup(ctx context.Context, accountID, groupID model.ID) error
 }
 
 // AccountService is the driving (primary) port exposing account-related
@@ -96,4 +100,12 @@ type AccountService interface {
 	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
+
+	ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error)
+	// AddGroup fails with ErrCodeAccountTypeNotAllowedInGroup unless
+	// accountID's type is model.AccountTypeUser — admins and org_admins
+	// already have broader access and aren't meant to be scoped to a
+	// group.
+	AddGroup(ctx context.Context, accountID, groupID model.ID) error
+	RemoveGroup(ctx context.Context, accountID, groupID model.ID) error
 }

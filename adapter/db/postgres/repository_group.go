@@ -145,6 +145,60 @@ func (r *GroupRepository) Delete(ctx context.Context, id model.ID) error {
 	return nil
 }
 
+func (r *GroupRepository) ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error) {
+	query, args, err := psql.Select("g.id", "g.name", "g.organization_id", "g.parent_id", "g.created_at", "g.updated_at").
+		From("groups g").
+		Join("account_groups ag ON ag.group_id = g.id").
+		Where(sq.Eq{"ag.account_id": string(accountID)}).
+		OrderBy("g.created_at DESC").
+		ToSql()
+	if err != nil {
+		return model.List[model.Group]{}, fmt.Errorf("postgres: failed to build list groups from account query: %w", err)
+	}
+
+	rows, err := r.db.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return model.List[model.Group]{}, fmt.Errorf("postgres: failed to list groups from account: %w", err)
+	}
+	defer rows.Close()
+
+	return scanGroupList(rows)
+}
+
+// AddAccount is idempotent: adding an account that's already a member is a
+// no-op, not an error.
+func (r *GroupRepository) AddAccount(ctx context.Context, groupID, accountID model.ID) error {
+	query, args, err := psql.Insert("account_groups").
+		Columns("group_id", "account_id").
+		Values(string(groupID), string(accountID)).
+		Suffix("ON CONFLICT (account_id, group_id) DO NOTHING").
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build add account to group query: %w", err)
+	}
+
+	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("postgres: failed to add account to group: %w", err)
+	}
+	return nil
+}
+
+// RemoveAccount is idempotent: removing a membership that doesn't exist is
+// a no-op, not an error.
+func (r *GroupRepository) RemoveAccount(ctx context.Context, groupID, accountID model.ID) error {
+	query, args, err := psql.Delete("account_groups").
+		Where(sq.Eq{"group_id": string(groupID), "account_id": string(accountID)}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build remove account from group query: %w", err)
+	}
+
+	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("postgres: failed to remove account from group: %w", err)
+	}
+	return nil
+}
+
 func scanGroup(row scannableRow) (model.Group, error) {
 	var (
 		g              model.Group

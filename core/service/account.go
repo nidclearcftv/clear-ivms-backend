@@ -278,6 +278,29 @@ func (s *AccountService) RemoveOrganization(ctx context.Context, accountID, orga
 	return nil
 }
 
+func (s *AccountService) ListFromGroup(ctx context.Context, groupID model.ID) (model.List[model.Account], error) {
+	return s.repo.ListFromGroup(ctx, groupID)
+}
+
+// AddGroup rejects accounts that aren't model.AccountTypeUser with
+// ErrCodeAccountTypeNotAllowedInGroup — admins and org_admins already have
+// broader access and aren't meant to be scoped to a group.
+func (s *AccountService) AddGroup(ctx context.Context, accountID, groupID model.ID) error {
+	account, err := s.repo.Get(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if account.Type != model.AccountTypeUser {
+		return model.NewError(model.ErrCodeAccountTypeNotAllowedInGroup, nil)
+	}
+
+	return s.repo.AddGroup(ctx, accountID, groupID)
+}
+
+func (s *AccountService) RemoveGroup(ctx context.Context, accountID, groupID model.ID) error {
+	return s.repo.RemoveGroup(ctx, accountID, groupID)
+}
+
 // newSessionToken generates a random session token (returned to the
 // client) and its SHA-256 hash (what's actually persisted). Unlike
 // passwords, session tokens are already high-entropy, so a fast hash is

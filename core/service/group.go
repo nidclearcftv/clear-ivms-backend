@@ -11,12 +11,16 @@ import (
 
 type GroupServiceOptions struct {
 	Repository port.GroupRepository `validate:"required"`
+
+	// Accounts backs AddAccount's account-type check — see AddAccount.
+	Accounts port.AccountRepository `validate:"required"`
 }
 
 // GroupService implements port.GroupService by delegating directly to a
 // port.GroupRepository.
 type GroupService struct {
-	repo port.GroupRepository
+	repo     port.GroupRepository
+	accounts port.AccountRepository
 }
 
 func NewGroupService(opts GroupServiceOptions) (*GroupService, error) {
@@ -24,7 +28,7 @@ func NewGroupService(opts GroupServiceOptions) (*GroupService, error) {
 		return nil, err
 	}
 
-	return &GroupService{repo: opts.Repository}, nil
+	return &GroupService{repo: opts.Repository, accounts: opts.Accounts}, nil
 }
 
 func (s *GroupService) Create(ctx context.Context, group model.Group) (model.Group, error) {
@@ -48,6 +52,30 @@ func (s *GroupService) Update(ctx context.Context, group model.Group) (model.Gro
 
 func (s *GroupService) Delete(ctx context.Context, id model.ID) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *GroupService) ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error) {
+	return s.repo.ListFromAccount(ctx, accountID)
+}
+
+// AddAccount rejects accounts that aren't model.AccountTypeUser with
+// ErrCodeAccountTypeNotAllowedInGroup; see
+// AccountService.AddGroup for the same rule enforced from the other
+// direction.
+func (s *GroupService) AddAccount(ctx context.Context, groupID, accountID model.ID) error {
+	account, err := s.accounts.Get(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if account.Type != model.AccountTypeUser {
+		return model.NewError(model.ErrCodeAccountTypeNotAllowedInGroup, nil)
+	}
+
+	return s.repo.AddAccount(ctx, groupID, accountID)
+}
+
+func (s *GroupService) RemoveAccount(ctx context.Context, groupID, accountID model.ID) error {
+	return s.repo.RemoveAccount(ctx, groupID, accountID)
 }
 
 var _ port.GroupService = (*GroupService)(nil)

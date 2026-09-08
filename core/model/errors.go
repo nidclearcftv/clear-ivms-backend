@@ -47,6 +47,10 @@ const (
 	// failure never reveals whether a given email is registered.
 	ErrCodeInvalidCredentials ErrorCode = 2005
 	ErrCodeAccountBlocked     ErrorCode = 2006
+	// ErrCodeAccountTypeNotAllowedInGroup means an admin or org_admin
+	// account was passed to a group-membership operation — only accounts
+	// of type user can belong to a group.
+	ErrCodeAccountTypeNotAllowedInGroup ErrorCode = 2007
 
 	// Organization errors (resource 3).
 	ErrCodeOrganizationNotFound ErrorCode = 3001
@@ -69,12 +73,13 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeVehicleNotFound:      "vehicle not found",
 	ErrCodeVehicleAlreadyExists: "a vehicle with this IVMS type and external ID already exists",
 
-	ErrCodeAccountNotFound:           "account not found",
-	ErrCodeAccountEmailAlreadyExists: "an account with this email already exists",
-	ErrCodeAccountHasOrganizations:   "account still belongs to one or more organizations",
-	ErrCodeAccountSessionNotFound:    "account session not found",
-	ErrCodeInvalidCredentials:        "invalid email or password",
-	ErrCodeAccountBlocked:            "account is blocked",
+	ErrCodeAccountNotFound:              "account not found",
+	ErrCodeAccountEmailAlreadyExists:    "an account with this email already exists",
+	ErrCodeAccountHasOrganizations:      "account still belongs to one or more organizations",
+	ErrCodeAccountSessionNotFound:       "account session not found",
+	ErrCodeInvalidCredentials:           "invalid email or password",
+	ErrCodeAccountBlocked:               "account is blocked",
+	ErrCodeAccountTypeNotAllowedInGroup: "only accounts of type user can be added to a group",
 
 	ErrCodeOrganizationNotFound:    "organization not found",
 	ErrCodeOrganizationHasGroups:   "organization still has one or more groups",

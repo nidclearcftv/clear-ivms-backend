@@ -101,4 +101,33 @@ func registerGroupRoutes(rg *gin.RouterGroup, groups port.GroupService, accounts
 		}
 		OK(c, nil)
 	})
+
+	g.GET("/:id/accounts", func(c *gin.Context) {
+		list, err := accounts.ListFromGroup(c.Request.Context(), model.ID(c.Param("id")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, newAccountListDTO(list))
+	})
+
+	// AddAccount rejects admin/org_admin accounts with
+	// ErrCodeAccountTypeNotAllowedInGroup — see port.GroupService.AddAccount.
+	g.POST("/:id/accounts/:accountId", func(c *gin.Context) {
+		err := groups.AddAccount(c.Request.Context(), model.ID(c.Param("id")), model.ID(c.Param("accountId")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, nil)
+	})
+
+	g.DELETE("/:id/accounts/:accountId", func(c *gin.Context) {
+		err := groups.RemoveAccount(c.Request.Context(), model.ID(c.Param("id")), model.ID(c.Param("accountId")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, nil)
+	})
 }
