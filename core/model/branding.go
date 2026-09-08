@@ -20,3 +20,14 @@ type BrandingFilters struct {
 func (f *BrandingFilters) String() string {
 	return ""
 }
+
+func BrandingKey(id ID) string {
+	return "branding:" + string(id)
+}
+
+// BrandingDomainKey caches a branding by domain (see
+// BrandingService.GetByDomain), separately from BrandingKey — the public
+// branding lookup route only ever has the domain, not the ID.
+func BrandingDomainKey(domain string) string {
+	return "branding_domain:" + domain
+}
