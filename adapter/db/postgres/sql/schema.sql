@@ -85,7 +85,7 @@ CREATE TABLE vehicles (
     organization_id UUID        NOT NULL,
     group_id        UUID,
     ivms_type       TEXT        NOT NULL CHECK (ivms_type IN ('cmsv6')),
-    external_id     TEXT        NOT NULL,
+    external_id     TEXT        NOT NULL UNIQUE,
     plate_number    TEXT        NOT NULL,
     status          TEXT        NOT NULL DEFAULT 'offline' CHECK (status IN ('online', 'offline')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),

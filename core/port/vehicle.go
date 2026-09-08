@@ -25,6 +25,11 @@ type VehicleRepository interface {
 	// SetStatus is the only way to change a vehicle's status; Update
 	// deliberately excludes it.
 	SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error
+	// SetStatusByExternalID is SetStatus keyed by the vehicle's (globally
+	// unique — see the vehicles.external_id UNIQUE constraint) external ID
+	// instead of its internal ID — what a vendor status webhook/poller has
+	// on hand.
+	SetStatusByExternalID(ctx context.Context, externalID string, status model.VehicleStatus) error
 }
 
 // VehicleService is the driving (primary) port exposing vehicle-related
@@ -37,4 +42,5 @@ type VehicleService interface {
 	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Delete(ctx context.Context, id model.ID) error
 	SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error
+	SetStatusByExternalID(ctx context.Context, externalID string, status model.VehicleStatus) error
 }

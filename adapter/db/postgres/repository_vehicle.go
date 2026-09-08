@@ -214,6 +214,32 @@ func (r *VehicleRepository) SetStatus(ctx context.Context, id model.ID, status m
 	return nil
 }
 
+// SetStatusByExternalID is SetStatus keyed by external_id instead of id —
+// what a vendor status webhook/poller has on hand. external_id is globally
+// unique (see uq_vehicles_ivms_type_external_id / the column's own UNIQUE
+// constraint), so this always targets at most one row.
+func (r *VehicleRepository) SetStatusByExternalID(ctx context.Context, externalID string, status model.VehicleStatus) error {
+	query, args, err := psql.Update("vehicles").
+		Set("status", string(status)).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"external_id": externalID}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build set vehicle status by external id query: %w", err)
+	}
+
+	tag, err := r.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to set vehicle status by external id: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
+
+	return nil
+}
+
 // idPtrToStringPtr converts a nullable model.ID into a nullable string for
 // the driver — pgx encodes a nil *string as SQL NULL, matching vehicles'
 // nullable group_id column (and groups' nullable parent_id column).

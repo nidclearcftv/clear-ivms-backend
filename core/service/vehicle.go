@@ -63,4 +63,8 @@ func (s *VehicleService) SetStatus(ctx context.Context, id model.ID, status mode
 	return s.repo.SetStatus(ctx, id, status)
 }
 
+func (s *VehicleService) SetStatusByExternalID(ctx context.Context, externalID string, status model.VehicleStatus) error {
+	return s.repo.SetStatusByExternalID(ctx, externalID, status)
+}
+
 var _ port.VehicleService = (*VehicleService)(nil)
