@@ -59,4 +59,8 @@ func (s *VehicleService) Delete(ctx context.Context, id model.ID) error {
 	return s.repo.Delete(ctx, id)
 }
 
+func (s *VehicleService) SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error {
+	return s.repo.SetStatus(ctx, id, status)
+}
+
 var _ port.VehicleService = (*VehicleService)(nil)

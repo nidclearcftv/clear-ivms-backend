@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var vehicleColumns = []string{"id", "organization_id", "group_id", "ivms_type", "external_id", "plate_number", "created_at", "updated_at"}
+var vehicleColumns = []string{"id", "organization_id", "group_id", "ivms_type", "external_id", "plate_number", "status", "created_at", "updated_at"}
 
 // VehicleRepository implements port.VehicleRepository against Postgres.
 type VehicleRepository struct {
@@ -189,6 +189,31 @@ func (r *VehicleRepository) Delete(ctx context.Context, id model.ID) error {
 	return nil
 }
 
+// SetStatus is the only way to change a vehicle's status — Update
+// deliberately excludes the column so a caller can't overwrite it as a
+// side effect of an unrelated field change.
+func (r *VehicleRepository) SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error {
+	query, args, err := psql.Update("vehicles").
+		Set("status", string(status)).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": string(id)}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build set vehicle status query: %w", err)
+	}
+
+	tag, err := r.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to set vehicle status: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
+
+	return nil
+}
+
 // idPtrToStringPtr converts a nullable model.ID into a nullable string for
 // the driver — pgx encodes a nil *string as SQL NULL, matching vehicles'
 // nullable group_id column (and groups' nullable parent_id column).
@@ -207,9 +232,10 @@ func scanVehicle(row scannableRow) (model.Vehicle, error) {
 		organizationID string
 		groupID        *string
 		ivmsType       string
+		status         string
 	)
 
-	err := row.Scan(&id, &organizationID, &groupID, &ivmsType, &v.ExternalID, &v.PlateNumber, &v.CreatedAt, &v.UpdatedAt)
+	err := row.Scan(&id, &organizationID, &groupID, &ivmsType, &v.ExternalID, &v.PlateNumber, &status, &v.CreatedAt, &v.UpdatedAt)
 	if err != nil {
 		return model.Vehicle{}, err
 	}
@@ -221,6 +247,7 @@ func scanVehicle(row scannableRow) (model.Vehicle, error) {
 		v.GroupID = &id
 	}
 	v.IVMSType = model.IVMSTypeFromString(ivmsType)
+	v.Status = model.VehicleStatus(status)
 
 	return v, nil
 }

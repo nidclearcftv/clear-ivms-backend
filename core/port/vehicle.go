@@ -19,8 +19,12 @@ type VehicleRepository interface {
 	// Count reports how many vehicles match filters — the same filters
 	// List accepts. List uses this to fill model.List.Total.
 	Count(ctx context.Context, filters model.VehicleFilters) (int, error)
+	// Update never touches status — see SetStatus.
 	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Delete(ctx context.Context, id model.ID) error
+	// SetStatus is the only way to change a vehicle's status; Update
+	// deliberately excludes it.
+	SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error
 }
 
 // VehicleService is the driving (primary) port exposing vehicle-related
@@ -32,4 +36,5 @@ type VehicleService interface {
 	Count(ctx context.Context, filters model.VehicleFilters) (int, error)
 	Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error)
 	Delete(ctx context.Context, id model.ID) error
+	SetStatus(ctx context.Context, id model.ID, status model.VehicleStatus) error
 }
