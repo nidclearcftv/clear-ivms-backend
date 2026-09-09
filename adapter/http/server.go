@@ -70,6 +70,12 @@ type Options struct {
 	// default), same-origin and non-browser clients are unaffected.
 	AllowedOrigins []string `validate:"omitempty,dive,required"`
 
+	// AllowInsecureCookies drops the Secure flag from the session cookie,
+	// allowing browsers to send/accept it over plain HTTP. Defaults to
+	// false (Secure, HTTPS-only) — only set this for local dev when the
+	// frontend isn't served over HTTPS. Never enable it in production.
+	AllowInsecureCookies bool
+
 	// MaxRequestBodyBytes caps request body size to guard against
 	// unbounded-body requests. Defaults to 1 MiB.
 	MaxRequestBodyBytes int64 `validate:"omitempty,gt=0"`
@@ -150,7 +156,7 @@ func NewServer(opts Options) (*Server, error) {
 	}
 
 	if opts.AccountService != nil {
-		registerAuthRoutes(v1, opts.AccountService)
+		registerAuthRoutes(v1, opts.AccountService, !opts.AllowInsecureCookies)
 		registerVehicleRoutes(v1, opts.VehicleService, opts.AccountService)
 
 		if opts.OrganizationService != nil {

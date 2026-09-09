@@ -11,8 +11,10 @@ import (
 )
 
 // sessionCookieName is the cookie the session token is stored in. It's
-// HttpOnly (never readable from JS) and Secure (browser-sent over HTTPS
-// only) — disable Secure only for local plain-HTTP testing.
+// always HttpOnly (never readable from JS); whether it's also Secure
+// (browser-sent over HTTPS only) is controlled by the cookieSecure param
+// threaded through from Options.AllowInsecureCookies — disable Secure only
+// for local plain-HTTP testing.
 const sessionCookieName = "session_token"
 
 type loginRequest struct {
@@ -20,7 +22,7 @@ type loginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService) {
+func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cookieSecure bool) {
 	rg.POST("/login", func(c *gin.Context) {
 		var req loginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -34,7 +36,7 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService) {
 			return
 		}
 
-		setSessionCookie(c, token)
+		setSessionCookie(c, token, cookieSecure)
 		OK(c, newAccountDTO(account))
 	})
 
@@ -43,7 +45,7 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService) {
 	// client asked to be logged out, so it shouldn't keep holding a token.
 	rg.POST("/logout", func(c *gin.Context) {
 		token, cookieErr := c.Cookie(sessionCookieName)
-		clearSessionCookie(c)
+		clearSessionCookie(c, cookieSecure)
 
 		if cookieErr != nil {
 			OK(c, nil)
@@ -75,24 +77,24 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService) {
 	})
 }
 
-func setSessionCookie(c *gin.Context, token string) {
+func setSessionCookie(c *gin.Context, token string, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
-func clearSessionCookie(c *gin.Context) {
+func clearSessionCookie(c *gin.Context, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})

@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/cache/memory"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/db/postgres"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
@@ -20,8 +22,18 @@ type Env struct {
 	DatabaseSchemaPath     string `env:"DATABASE_SCHEMA_PATH,default=adapter/db/postgres/sql/schema.sql"`
 	DatabaseMigrationsPath string `env:"DATABASE_MIGRATIONS_PATH,default=adapter/db/postgres/sql/migrations"`
 
-	HTTPAddr           string   `env:"HTTP_ADDR,default=:8080"`
-	HTTPAllowedOrigins []string `env:"HTTP_ALLOWED_ORIGINS,separator=,"`
+	HTTPAddr                 string   `env:"HTTP_ADDR,default=:8080"`
+	HTTPAllowedOrigins       []string `env:"HTTP_ALLOWED_ORIGINS,separator=,"`
+	HTTPAllowInsecureCookies bool     `env:"HTTP_ALLOW_INSECURE_COOKIES,default=false"`
+
+	// SeedOrganizationName/SeedAdmin* bootstrap a default organization and
+	// admin account on startup (see service.SeedService) — only run when
+	// both SeedAdminEmail and SeedAdminPassword are set, so existing
+	// deployments that don't want a seeded account are unaffected.
+	SeedOrganizationName string `env:"SEED_ORGANIZATION_NAME,default="`
+	SeedAdminName        string `env:"SEED_ADMIN_NAME,default="`
+	SeedAdminEmail       string `env:"SEED_ADMIN_EMAIL,default="`
+	SeedAdminPassword    string `env:"SEED_ADMIN_PASSWORD,default="`
 }
 
 type App struct {
@@ -62,6 +74,8 @@ func main() {
 	}
 
 	vehicleRepository := postgres.NewVehicleRepository(db)
+	accountRepository := postgres.NewAccountRepository(db)
+	organizationRepository := postgres.NewOrganizationRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
@@ -70,11 +84,53 @@ func main() {
 		log.Fatalw("failed to create vehicle service", "error", err)
 	}
 
+	accountCache, err := memory.NewCache(memory.Options{DefaultExpiration: 5 * time.Minute})
+	if err != nil {
+		log.Fatalw("failed to create account cache", "error", err)
+	}
+
+	accountService, err := service.NewAccountService(service.AccountServiceOptions{
+		Repository: accountRepository,
+		Cache:      accountCache,
+	})
+	if err != nil {
+		log.Fatalw("failed to create account service", "error", err)
+	}
+
+	organizationService, err := service.NewOrganizationService(service.OrganizationServiceOptions{
+		Repository: organizationRepository,
+	})
+	if err != nil {
+		log.Fatalw("failed to create organization service", "error", err)
+	}
+
+	if envOptions.SeedAdminEmail != "" && envOptions.SeedAdminPassword != "" {
+		seedService, err := service.NewSeedService(service.SeedOptions{
+			Organizations:    organizationService,
+			Accounts:         accountService,
+			OrganizationName: envOptions.SeedOrganizationName,
+			AdminName:        envOptions.SeedAdminName,
+			AdminEmail:       envOptions.SeedAdminEmail,
+			AdminPassword:    envOptions.SeedAdminPassword,
+		})
+		if err != nil {
+			log.Fatalw("failed to create seed service", "error", err)
+		}
+
+		if err := seedService.Seed(ctx); err != nil {
+			log.Fatalw("failed to seed database", "error", err)
+		}
+		log.Infow("seeded default organization and admin account", "email", envOptions.SeedAdminEmail)
+	}
+
 	httpServer, err := httpapi.NewServer(httpapi.Options{
-		Logger:         log,
-		Addr:           envOptions.HTTPAddr,
-		AllowedOrigins: envOptions.HTTPAllowedOrigins,
-		VehicleService: vehicleService,
+		Logger:               log,
+		Addr:                 envOptions.HTTPAddr,
+		AllowedOrigins:       envOptions.HTTPAllowedOrigins,
+		AllowInsecureCookies: envOptions.HTTPAllowInsecureCookies,
+		VehicleService:       vehicleService,
+		AccountService:       accountService,
+		OrganizationService:  organizationService,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)

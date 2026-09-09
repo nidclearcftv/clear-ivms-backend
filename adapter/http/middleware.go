@@ -14,7 +14,7 @@ func corsConfig(allowedOrigins []string) cors.Config {
 	cfg.AllowOrigins = allowedOrigins
 	cfg.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	cfg.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
-	cfg.AllowCredentials = false
+	cfg.AllowCredentials = true
 	cfg.MaxAge = 12 * time.Hour
 	return cfg
 }
