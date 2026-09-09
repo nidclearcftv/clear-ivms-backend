@@ -76,6 +76,7 @@ func main() {
 	vehicleRepository := postgres.NewVehicleRepository(db)
 	accountRepository := postgres.NewAccountRepository(db)
 	organizationRepository := postgres.NewOrganizationRepository(db)
+	brandingRepository := postgres.NewBrandingRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
@@ -84,14 +85,14 @@ func main() {
 		log.Fatalw("failed to create vehicle service", "error", err)
 	}
 
-	accountCache, err := memory.NewCache(memory.Options{DefaultExpiration: 5 * time.Minute})
+	sharedCache, err := memory.NewCache(memory.Options{DefaultExpiration: 5 * time.Minute})
 	if err != nil {
-		log.Fatalw("failed to create account cache", "error", err)
+		log.Fatalw("failed to create cache", "error", err)
 	}
 
 	accountService, err := service.NewAccountService(service.AccountServiceOptions{
 		Repository: accountRepository,
-		Cache:      accountCache,
+		Cache:      sharedCache,
 	})
 	if err != nil {
 		log.Fatalw("failed to create account service", "error", err)
@@ -102,6 +103,14 @@ func main() {
 	})
 	if err != nil {
 		log.Fatalw("failed to create organization service", "error", err)
+	}
+
+	brandingService, err := service.NewBrandingService(service.BrandingServiceOptions{
+		Repository: brandingRepository,
+		Cache:      sharedCache,
+	})
+	if err != nil {
+		log.Fatalw("failed to create branding service", "error", err)
 	}
 
 	if envOptions.SeedAdminEmail != "" && envOptions.SeedAdminPassword != "" {
@@ -131,6 +140,7 @@ func main() {
 		VehicleService:       vehicleService,
 		AccountService:       accountService,
 		OrganizationService:  organizationService,
+		BrandingService:      brandingService,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)
