@@ -14,11 +14,32 @@ type Branding struct {
 	UpdatedAt time.Time
 }
 
+// BrandingSortField is a column BrandingFilters.SortBy can order List by.
+type BrandingSortField string
+
+const (
+	BrandingSortByName      BrandingSortField = "name"
+	BrandingSortByDomain    BrandingSortField = "domain"
+	BrandingSortByCreatedAt BrandingSortField = "createdAt"
+)
+
+type SortDirection string
+
+const (
+	SortDirectionAsc  SortDirection = "asc"
+	SortDirectionDesc SortDirection = "desc"
+)
+
+// BrandingFilters narrows/orders a branding listing. SortBy defaults to
+// createdAt (descending) when unset; SortDir defaults to ascending when
+// SortBy is set but SortDir isn't.
 type BrandingFilters struct {
+	SortBy  BrandingSortField `form:"sortBy" binding:"omitempty,oneof=name domain createdAt"`
+	SortDir SortDirection     `form:"sortDir" binding:"omitempty,oneof=asc desc"`
 }
 
 func (f *BrandingFilters) String() string {
-	return ""
+	return "sort_by:" + string(f.SortBy) + ":sort_dir:" + string(f.SortDir)
 }
 
 func BrandingKey(id ID) string {

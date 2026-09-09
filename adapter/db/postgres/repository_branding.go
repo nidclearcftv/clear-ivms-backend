@@ -23,6 +23,38 @@ func NewBrandingRepository(db *DB) *BrandingRepository {
 	return &BrandingRepository{db: db}
 }
 
+// brandingOrderBy translates BrandingFilters' sort fields into a safe
+// ORDER BY clause — the column/direction always come from the fixed
+// switches below, never straight from request input, so this can't be
+// abused for SQL injection. Defaults to created_at DESC when SortBy is
+// unset, matching List's pre-sorting behavior; a set SortBy defaults to
+// ascending when SortDir isn't also set.
+func brandingOrderBy(filters model.BrandingFilters) string {
+	column := "created_at"
+	direction := "DESC"
+
+	switch filters.SortBy {
+	case model.BrandingSortByName:
+		column = "name"
+		direction = "ASC"
+	case model.BrandingSortByDomain:
+		column = "domain"
+		direction = "ASC"
+	case model.BrandingSortByCreatedAt:
+		column = "created_at"
+		direction = "ASC"
+	}
+
+	switch filters.SortDir {
+	case model.SortDirectionAsc:
+		direction = "ASC"
+	case model.SortDirectionDesc:
+		direction = "DESC"
+	}
+
+	return column + " " + direction
+}
+
 func (r *BrandingRepository) Create(ctx context.Context, branding model.Branding) (model.Branding, error) {
 	if branding.Config == nil {
 		branding.Config = model.JSON{}
@@ -92,12 +124,12 @@ func (r *BrandingRepository) GetByDomain(ctx context.Context, domain string) (mo
 	return branding, nil
 }
 
-// List ignores filters for now: model.BrandingFilters carries no fields
-// yet.
+// List ignores filters' non-sort fields for now: model.BrandingFilters
+// carries no other fields yet.
 func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFilters) (model.List[model.Branding], error) {
 	query, args, err := psql.Select(brandingColumns...).
 		From("brandings").
-		OrderBy("created_at DESC").
+		OrderBy(brandingOrderBy(filters)).
 		ToSql()
 	if err != nil {
 		return model.List[model.Branding]{}, fmt.Errorf("postgres: failed to build list brandings query: %w", err)
