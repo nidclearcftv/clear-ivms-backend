@@ -17,15 +17,22 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/utils/validate"
 )
 
-const defaultSessionTTL = 24 * time.Hour
+const (
+	defaultSessionTTL           = 24 * time.Hour
+	defaultRememberMeSessionTTL = 30 * 24 * time.Hour
+)
 
 type AccountServiceOptions struct {
 	Repository port.AccountRepository `validate:"required"`
 	Cache      port.Cache             `validate:"required"`
 
-	// SessionTTL is how long a session created by Login stays valid.
-	// Defaults to 24h.
+	// SessionTTL is how long a session created by Login stays valid when
+	// rememberMe is false. Defaults to 24h.
 	SessionTTL time.Duration `validate:"omitempty,gt=0"`
+
+	// RememberMeSessionTTL is how long a session created by Login stays
+	// valid when rememberMe is true. Defaults to 30 days.
+	RememberMeSessionTTL time.Duration `validate:"omitempty,gt=0"`
 }
 
 // AccountService implements port.AccountService. Most methods are thin
@@ -34,9 +41,10 @@ type AccountServiceOptions struct {
 // credential verification and session issuance/revocation — that has no
 // business living in the repository.
 type AccountService struct {
-	repo       port.AccountRepository
-	cache      port.Cache
-	sessionTTL time.Duration
+	repo                 port.AccountRepository
+	cache                port.Cache
+	sessionTTL           time.Duration
+	rememberMeSessionTTL time.Duration
 }
 
 func NewAccountService(opts AccountServiceOptions) (*AccountService, error) {
@@ -49,7 +57,17 @@ func NewAccountService(opts AccountServiceOptions) (*AccountService, error) {
 		sessionTTL = defaultSessionTTL
 	}
 
-	return &AccountService{repo: opts.Repository, cache: opts.Cache, sessionTTL: sessionTTL}, nil
+	rememberMeSessionTTL := opts.RememberMeSessionTTL
+	if rememberMeSessionTTL == 0 {
+		rememberMeSessionTTL = defaultRememberMeSessionTTL
+	}
+
+	return &AccountService{
+		repo:                 opts.Repository,
+		cache:                opts.Cache,
+		sessionTTL:           sessionTTL,
+		rememberMeSessionTTL: rememberMeSessionTTL,
+	}, nil
 }
 
 // Create expects passwordHash to already be hashed by the caller — same
@@ -109,39 +127,48 @@ func (s *AccountService) SetPassword(ctx context.Context, id model.ID, passwordH
 // Login verifies email/password and, on success, starts a new session. See
 // port.AccountService.Login for the exact contract (in particular: unknown
 // email and wrong password both fail as ErrCodeInvalidCredentials, never
-// distinguished).
-func (s *AccountService) Login(ctx context.Context, email, password string) (model.Account, string, error) {
+// distinguished). rememberMe selects which of SessionTTL/RememberMeSessionTTL
+// the new session expires after; the caller (adapter/http) uses the returned
+// expiry to decide whether the session cookie itself should persist across
+// browser restarts.
+func (s *AccountService) Login(ctx context.Context, email, password string, rememberMe bool) (model.Account, string, time.Time, error) {
 	account, passwordHash, err := s.repo.GetByEmailWithPassword(ctx, email)
 	if err != nil {
 		var merr *model.Error
 		if errors.As(err, &merr) && merr.Code == model.ErrCodeAccountNotFound {
-			return model.Account{}, "", model.NewError(model.ErrCodeInvalidCredentials, err)
+			return model.Account{}, "", time.Time{}, model.NewError(model.ErrCodeInvalidCredentials, err)
 		}
-		return model.Account{}, "", err
+		return model.Account{}, "", time.Time{}, err
 	}
 
 	if account.Blocked {
-		return model.Account{}, "", model.NewError(model.ErrCodeAccountBlocked, nil)
+		return model.Account{}, "", time.Time{}, model.NewError(model.ErrCodeAccountBlocked, nil)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return model.Account{}, "", model.NewError(model.ErrCodeInvalidCredentials, err)
+		return model.Account{}, "", time.Time{}, model.NewError(model.ErrCodeInvalidCredentials, err)
 	}
 
 	token, tokenHash, err := newSessionToken()
 	if err != nil {
-		return model.Account{}, "", fmt.Errorf("service: failed to generate session token: %w", err)
+		return model.Account{}, "", time.Time{}, fmt.Errorf("service: failed to generate session token: %w", err)
 	}
+
+	ttl := s.sessionTTL
+	if rememberMe {
+		ttl = s.rememberMeSessionTTL
+	}
+	expiresAt := time.Now().Add(ttl)
 
 	if _, err := s.repo.CreateSession(ctx, model.AccountSession{
 		AccountID: account.ID,
 		TokenHash: tokenHash,
-		ExpiresAt: time.Now().Add(s.sessionTTL),
+		ExpiresAt: expiresAt,
 	}); err != nil {
-		return model.Account{}, "", err
+		return model.Account{}, "", time.Time{}, err
 	}
 
-	return account, token, nil
+	return account, token, expiresAt, nil
 }
 
 // Logout invalidates the cache entry Authenticate populates for this

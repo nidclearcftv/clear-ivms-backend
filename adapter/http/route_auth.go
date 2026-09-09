@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,8 +19,9 @@ import (
 const sessionCookieName = "session_token"
 
 type loginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe bool   `json:"rememberMe"`
 }
 
 func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cookieSecure bool) {
@@ -30,13 +32,13 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cooki
 			return
 		}
 
-		account, token, err := accounts.Login(c.Request.Context(), req.Email, req.Password)
+		account, token, expiresAt, err := accounts.Login(c.Request.Context(), req.Email, req.Password, req.RememberMe)
 		if err != nil {
 			RespondError(c, err)
 			return
 		}
 
-		setSessionCookie(c, token, cookieSecure)
+		setSessionCookie(c, token, cookieSecure, req.RememberMe, expiresAt)
 		OK(c, newAccountDTO(account))
 	})
 
@@ -77,15 +79,26 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cooki
 	})
 }
 
-func setSessionCookie(c *gin.Context, token string, secure bool) {
-	http.SetCookie(c.Writer, &http.Cookie{
+// setSessionCookie writes the session cookie. When persistent is false
+// (the default, no "remember me"), it's a browser-session cookie — cleared
+// as soon as the browser closes, regardless of how long the server-side
+// session itself remains valid — so a user who didn't ask to be remembered
+// has to log in again next time they open the browser. When persistent is
+// true, Expires is set to the session's actual server-side expiry so the
+// cookie survives browser restarts for exactly as long as the session does.
+func setSessionCookie(c *gin.Context, token string, secure bool, persistent bool, expiresAt time.Time) {
+	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
+	if persistent {
+		cookie.Expires = expiresAt
+	}
+	http.SetCookie(c.Writer, cookie)
 }
 
 func clearSessionCookie(c *gin.Context, secure bool) {

@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"time"
 
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
 )
@@ -82,12 +83,15 @@ type AccountService interface {
 	SetPassword(ctx context.Context, id model.ID, passwordHash string) error
 
 	// Login verifies email/password and, on success, starts a new session,
-	// returning the account and the session's raw (unhashed) token — the
+	// returning the account, the session's raw (unhashed) token — the
 	// value to hand back to the client (e.g. as a cookie); only its hash is
-	// ever persisted. Fails with ErrCodeInvalidCredentials for either an
-	// unknown email or a wrong password (never distinguished, to avoid
-	// leaking which emails are registered), or ErrCodeAccountBlocked.
-	Login(ctx context.Context, email, password string) (model.Account, string, error)
+	// ever persisted — and the session's expiry, which the caller uses to
+	// decide how long-lived the token's storage (e.g. a cookie) should be.
+	// rememberMe selects a longer expiry than a normal login. Fails with
+	// ErrCodeInvalidCredentials for either an unknown email or a wrong
+	// password (never distinguished, to avoid leaking which emails are
+	// registered), or ErrCodeAccountBlocked.
+	Login(ctx context.Context, email, password string, rememberMe bool) (model.Account, string, time.Time, error)
 	// Logout revokes the session identified by its raw token (as returned
 	// by Login).
 	Logout(ctx context.Context, token string) error
