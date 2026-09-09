@@ -40,3 +40,26 @@ func newAccountListDTO(list model.List[model.Account]) ListDTO[AccountDTO] {
 	}
 	return ListDTO[AccountDTO]{Items: items, Total: list.Total}
 }
+
+// OrganizationSummaryDTO is the minimal (id, name) representation of
+// model.Organization used by MeDTO — /me only needs enough to populate an
+// organization switcher, not the full OrganizationDTO.
+type OrganizationSummaryDTO struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// MeDTO is the response shape for GET /me: the account plus the
+// organizations it belongs to.
+type MeDTO struct {
+	AccountDTO
+	Organizations []OrganizationSummaryDTO `json:"organizations"`
+}
+
+func newMeDTO(a model.Account, organizations []model.Organization) MeDTO {
+	summaries := make([]OrganizationSummaryDTO, len(organizations))
+	for i, o := range organizations {
+		summaries[i] = OrganizationSummaryDTO{ID: string(o.ID), Name: o.Name}
+	}
+	return MeDTO{AccountDTO: newAccountDTO(a), Organizations: summaries}
+}

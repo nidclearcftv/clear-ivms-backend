@@ -24,7 +24,7 @@ type loginRequest struct {
 	RememberMe bool   `json:"rememberMe"`
 }
 
-func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cookieSecure bool) {
+func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, organizations port.OrganizationService, cookieSecure bool) {
 	rg.POST("/login", func(c *gin.Context) {
 		var req loginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,7 +75,18 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, cooki
 			Fail(c, model.ErrCodeUnknown)
 			return
 		}
-		OK(c, newAccountDTO(account))
+
+		var orgs []model.Organization
+		if organizations != nil {
+			list, err := organizations.ListFromAccount(c.Request.Context(), account.ID)
+			if err != nil {
+				RespondError(c, err)
+				return
+			}
+			orgs = list.Items
+		}
+
+		OK(c, newMeDTO(account, orgs))
 	})
 }
 
