@@ -31,14 +31,25 @@ const (
 	SortDirectionDesc SortDirection = "desc"
 )
 
-// BrandingFilters narrows/orders a branding listing. SortBy defaults to
-// createdAt (descending) when unset; SortDir defaults to ascending when
-// SortBy is set but SortDir isn't. Search, when set, matches brandings
-// whose name or domain contains it (case-insensitive).
+// BrandingDefaultPageSize and BrandingMaxPageSize bound BrandingFilters.PageSize:
+// unset (zero) defaults to BrandingDefaultPageSize, and any larger value is
+// capped at BrandingMaxPageSize.
+const (
+	BrandingDefaultPageSize = 20
+	BrandingMaxPageSize     = 100
+)
+
+// BrandingFilters narrows/orders/paginates a branding listing. SortBy
+// defaults to createdAt (descending) when unset; SortDir defaults to
+// ascending when SortBy is set but SortDir isn't. Search, when set,
+// matches brandings whose name or domain contains it (case-insensitive).
+// Page defaults to 1 and PageSize to BrandingDefaultPageSize when unset.
 type BrandingFilters struct {
-	Search  string            `form:"search"`
-	SortBy  BrandingSortField `form:"sortBy" binding:"omitempty,oneof=name domain createdAt updatedAt"`
-	SortDir SortDirection     `form:"sortDir" binding:"omitempty,oneof=asc desc"`
+	Search   string            `form:"search"`
+	SortBy   BrandingSortField `form:"sortBy" binding:"omitempty,oneof=name domain createdAt updatedAt"`
+	SortDir  SortDirection     `form:"sortDir" binding:"omitempty,oneof=asc desc"`
+	Page     int               `form:"page" binding:"omitempty,min=1"`
+	PageSize int               `form:"pageSize" binding:"omitempty,min=1,max=100"`
 }
 
 func (f *BrandingFilters) String() string {

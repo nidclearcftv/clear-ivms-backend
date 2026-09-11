@@ -141,9 +141,17 @@ func (r *BrandingRepository) GetByDomain(ctx context.Context, domain string) (mo
 }
 
 func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFilters) (model.List[model.Branding], error) {
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.BrandingDefaultPageSize
+	}
+
 	builder := psql.Select(brandingColumns...).
 		From("brandings").
-		OrderBy(brandingOrderBy(filters))
+		OrderBy(brandingOrderBy(filters)).
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
 	if search := brandingSearchFilter(filters); search != nil {
 		builder = builder.Where(search)
 	}
