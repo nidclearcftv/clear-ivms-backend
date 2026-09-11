@@ -43,6 +43,9 @@ func brandingOrderBy(filters model.BrandingFilters) string {
 	case model.BrandingSortByCreatedAt:
 		column = "created_at"
 		direction = "ASC"
+	case model.BrandingSortByUpdatedAt:
+		column = "updated_at"
+		direction = "ASC"
 	}
 
 	switch filters.SortDir {
@@ -53,6 +56,19 @@ func brandingOrderBy(filters model.BrandingFilters) string {
 	}
 
 	return column + " " + direction
+}
+
+// brandingSearchFilter builds a WHERE clause matching filters.Search
+// case-insensitively against name or domain, or nil when Search is empty.
+func brandingSearchFilter(filters model.BrandingFilters) sq.Sqlizer {
+	if filters.Search == "" {
+		return nil
+	}
+	pattern := "%" + filters.Search + "%"
+	return sq.Or{
+		sq.ILike{"name": pattern},
+		sq.ILike{"domain": pattern},
+	}
 }
 
 func (r *BrandingRepository) Create(ctx context.Context, branding model.Branding) (model.Branding, error) {
@@ -124,13 +140,15 @@ func (r *BrandingRepository) GetByDomain(ctx context.Context, domain string) (mo
 	return branding, nil
 }
 
-// List ignores filters' non-sort fields for now: model.BrandingFilters
-// carries no other fields yet.
 func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFilters) (model.List[model.Branding], error) {
-	query, args, err := psql.Select(brandingColumns...).
+	builder := psql.Select(brandingColumns...).
 		From("brandings").
-		OrderBy(brandingOrderBy(filters)).
-		ToSql()
+		OrderBy(brandingOrderBy(filters))
+	if search := brandingSearchFilter(filters); search != nil {
+		builder = builder.Where(search)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return model.List[model.Branding]{}, fmt.Errorf("postgres: failed to build list brandings query: %w", err)
 	}
@@ -155,9 +173,13 @@ func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFil
 	return list, nil
 }
 
-// Count ignores filters for now, same reason as List.
 func (r *BrandingRepository) Count(ctx context.Context, filters model.BrandingFilters) (int, error) {
-	query, args, err := psql.Select("COUNT(*)").From("brandings").ToSql()
+	builder := psql.Select("COUNT(*)").From("brandings")
+	if search := brandingSearchFilter(filters); search != nil {
+		builder = builder.Where(search)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("postgres: failed to build count brandings query: %w", err)
 	}

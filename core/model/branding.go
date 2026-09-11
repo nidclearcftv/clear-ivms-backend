@@ -21,6 +21,7 @@ const (
 	BrandingSortByName      BrandingSortField = "name"
 	BrandingSortByDomain    BrandingSortField = "domain"
 	BrandingSortByCreatedAt BrandingSortField = "createdAt"
+	BrandingSortByUpdatedAt BrandingSortField = "updatedAt"
 )
 
 type SortDirection string
@@ -32,14 +33,16 @@ const (
 
 // BrandingFilters narrows/orders a branding listing. SortBy defaults to
 // createdAt (descending) when unset; SortDir defaults to ascending when
-// SortBy is set but SortDir isn't.
+// SortBy is set but SortDir isn't. Search, when set, matches brandings
+// whose name or domain contains it (case-insensitive).
 type BrandingFilters struct {
-	SortBy  BrandingSortField `form:"sortBy" binding:"omitempty,oneof=name domain createdAt"`
+	Search  string            `form:"search"`
+	SortBy  BrandingSortField `form:"sortBy" binding:"omitempty,oneof=name domain createdAt updatedAt"`
 	SortDir SortDirection     `form:"sortDir" binding:"omitempty,oneof=asc desc"`
 }
 
 func (f *BrandingFilters) String() string {
-	return "sort_by:" + string(f.SortBy) + ":sort_dir:" + string(f.SortDir)
+	return "search:" + f.Search + ":sort_by:" + string(f.SortBy) + ":sort_dir:" + string(f.SortDir)
 }
 
 func BrandingKey(id ID) string {
