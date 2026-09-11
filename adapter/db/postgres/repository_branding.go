@@ -58,17 +58,30 @@ func brandingOrderBy(filters model.BrandingFilters) string {
 	return column + " " + direction
 }
 
-// brandingSearchFilter builds a WHERE clause matching filters.Search
-// case-insensitively against name or domain, or nil when Search is empty.
-func brandingSearchFilter(filters model.BrandingFilters) sq.Sqlizer {
-	if filters.Search == "" {
-		return nil
+// brandingWhereClauses builds the WHERE conditions for filters.Search
+// (case-insensitive match against name or domain) and the
+// CreatedFrom/CreatedTo date range, in the order they should be ANDed.
+// Returns an empty slice when no filter narrows the result set.
+func brandingWhereClauses(filters model.BrandingFilters) []sq.Sqlizer {
+	var clauses []sq.Sqlizer
+
+	if filters.Search != "" {
+		pattern := "%" + filters.Search + "%"
+		clauses = append(clauses, sq.Or{
+			sq.ILike{"name": pattern},
+			sq.ILike{"domain": pattern},
+		})
 	}
-	pattern := "%" + filters.Search + "%"
-	return sq.Or{
-		sq.ILike{"name": pattern},
-		sq.ILike{"domain": pattern},
+	if filters.CreatedFrom != nil {
+		clauses = append(clauses, sq.GtOrEq{"created_at": *filters.CreatedFrom})
 	}
+	if filters.CreatedTo != nil {
+		// CreatedTo is a calendar date with no time component; include the
+		// entire day by comparing against the start of the following day.
+		clauses = append(clauses, sq.Lt{"created_at": filters.CreatedTo.AddDate(0, 0, 1)})
+	}
+
+	return clauses
 }
 
 func (r *BrandingRepository) Create(ctx context.Context, branding model.Branding) (model.Branding, error) {
@@ -152,8 +165,8 @@ func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFil
 		OrderBy(brandingOrderBy(filters)).
 		Limit(uint64(pageSize)).
 		Offset(uint64((page - 1) * pageSize))
-	if search := brandingSearchFilter(filters); search != nil {
-		builder = builder.Where(search)
+	for _, clause := range brandingWhereClauses(filters) {
+		builder = builder.Where(clause)
 	}
 
 	query, args, err := builder.ToSql()
@@ -183,8 +196,8 @@ func (r *BrandingRepository) List(ctx context.Context, filters model.BrandingFil
 
 func (r *BrandingRepository) Count(ctx context.Context, filters model.BrandingFilters) (int, error) {
 	builder := psql.Select("COUNT(*)").From("brandings")
-	if search := brandingSearchFilter(filters); search != nil {
-		builder = builder.Where(search)
+	for _, clause := range brandingWhereClauses(filters) {
+		builder = builder.Where(clause)
 	}
 
 	query, args, err := builder.ToSql()
