@@ -63,3 +63,46 @@ func newMeDTO(a model.Account, organizations []model.Organization) MeDTO {
 	}
 	return MeDTO{AccountDTO: newAccountDTO(a), Organizations: summaries}
 }
+
+// newOrganizationSummaryListDTO is newMeDTO's organization-mapping loop,
+// reused for GET /accounts/:id/organizations — an arbitrary account's
+// memberships, not just the caller's own (see MeDTO for why the summary
+// shape, rather than the full OrganizationDTO, is enough here too).
+func newOrganizationSummaryListDTO(list model.List[model.Organization]) ListDTO[OrganizationSummaryDTO] {
+	items := make([]OrganizationSummaryDTO, len(list.Items))
+	for i, o := range list.Items {
+		items[i] = OrganizationSummaryDTO{ID: string(o.ID), Name: o.Name}
+	}
+	return ListDTO[OrganizationSummaryDTO]{Items: items, Total: list.Total}
+}
+
+// AccountSessionDTO is the wire representation of model.AccountSession. The
+// token hash never appears here — it's a server-side secret, not something
+// a client (even an admin viewing another account's sessions) needs back.
+type AccountSessionDTO struct {
+	ID        string     `json:"id"`
+	UserAgent *string    `json:"userAgent"`
+	IPAddress *string    `json:"ipAddress"`
+	ExpiresAt time.Time  `json:"expiresAt"`
+	RevokedAt *time.Time `json:"revokedAt"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
+func newAccountSessionDTO(s model.AccountSession) AccountSessionDTO {
+	return AccountSessionDTO{
+		ID:        string(s.ID),
+		UserAgent: s.UserAgent,
+		IPAddress: s.IPAddress,
+		ExpiresAt: s.ExpiresAt,
+		RevokedAt: s.RevokedAt,
+		CreatedAt: s.CreatedAt,
+	}
+}
+
+func newAccountSessionListDTO(list model.List[model.AccountSession]) ListDTO[AccountSessionDTO] {
+	items := make([]AccountSessionDTO, len(list.Items))
+	for i, s := range list.Items {
+		items[i] = newAccountSessionDTO(s)
+	}
+	return ListDTO[AccountSessionDTO]{Items: items, Total: list.Total}
+}

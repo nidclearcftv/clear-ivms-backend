@@ -102,19 +102,36 @@ func accountOrderBy(filters model.AccountFilters) string {
 }
 
 // accountWhereClauses builds the WHERE conditions for filters.Search
-// (case-insensitive match against name or email). Returns an empty slice
-// when Search is unset.
+// (case-insensitive match against name or email), filters.Type,
+// filters.Blocked, and the CreatedFrom/CreatedTo date range, in the order
+// they should be ANDed. Returns an empty slice when no filter narrows the
+// result set.
 func accountWhereClauses(filters model.AccountFilters) []sq.Sqlizer {
-	if filters.Search == "" {
-		return nil
-	}
-	pattern := "%" + filters.Search + "%"
-	return []sq.Sqlizer{
-		sq.Or{
+	var clauses []sq.Sqlizer
+
+	if filters.Search != "" {
+		pattern := "%" + filters.Search + "%"
+		clauses = append(clauses, sq.Or{
 			sq.ILike{"name": pattern},
 			sq.ILike{"email": pattern},
-		},
+		})
 	}
+	if filters.Type != "" {
+		clauses = append(clauses, sq.Eq{"type": string(filters.Type)})
+	}
+	if filters.Blocked != nil {
+		clauses = append(clauses, sq.Eq{"blocked": *filters.Blocked})
+	}
+	if filters.CreatedFrom != nil {
+		clauses = append(clauses, sq.GtOrEq{"created_at": *filters.CreatedFrom})
+	}
+	if filters.CreatedTo != nil {
+		// CreatedTo is a calendar date with no time component; include the
+		// entire day by comparing against the start of the following day.
+		clauses = append(clauses, sq.Lt{"created_at": filters.CreatedTo.AddDate(0, 0, 1)})
+	}
+
+	return clauses
 }
 
 func (r *AccountRepository) List(ctx context.Context, filters model.AccountFilters) (model.List[model.Account], error) {

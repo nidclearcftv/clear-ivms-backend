@@ -157,7 +157,7 @@ func NewServer(opts Options) (*Server, error) {
 
 	if opts.AccountService != nil {
 		registerAuthRoutes(v1, opts.AccountService, opts.OrganizationService, !opts.AllowInsecureCookies)
-		registerAccountRoutes(v1, opts.AccountService)
+		registerAccountRoutes(v1, opts.AccountService, opts.OrganizationService)
 		registerVehicleRoutes(v1, opts.VehicleService, opts.AccountService)
 
 		if opts.OrganizationService != nil {
