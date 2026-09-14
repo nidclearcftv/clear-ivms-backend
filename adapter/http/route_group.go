@@ -130,4 +130,27 @@ func registerGroupRoutes(rg *gin.RouterGroup, groups port.GroupService, accounts
 		}
 		OK(c, nil)
 	})
+
+	// AddVehicle moves vehicleId into this group, out of whichever group
+	// (if any) it previously belonged to — a vehicle belongs to at most one
+	// group at a time. A group's vehicles are listed via the ordinary
+	// GET /vehicles?groupId=, not a route here — see
+	// port.GroupService.AddVehicle.
+	g.POST("/:id/vehicles/:vehicleId", func(c *gin.Context) {
+		err := groups.AddVehicle(c.Request.Context(), model.ID(c.Param("id")), model.ID(c.Param("vehicleId")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, nil)
+	})
+
+	g.DELETE("/:id/vehicles/:vehicleId", func(c *gin.Context) {
+		err := groups.RemoveVehicle(c.Request.Context(), model.ID(c.Param("id")), model.ID(c.Param("vehicleId")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, nil)
+	})
 }

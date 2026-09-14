@@ -34,8 +34,19 @@ func (s *VehicleService) Create(ctx context.Context, vehicle model.Vehicle) (mod
 	return s.repo.Create(ctx, vehicle)
 }
 
+// Get fails with ErrCodeVehicleNotFound if id exists but belongs to a
+// different organization than the request's — reported the same as a
+// nonexistent id, so a caller can't distinguish "not found" from
+// "not yours" for another organization's vehicle.
 func (s *VehicleService) Get(ctx context.Context, id model.ID) (model.Vehicle, error) {
-	return s.repo.Get(ctx, id)
+	vehicle, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return model.Vehicle{}, err
+	}
+	if vehicle.OrganizationID != utils.OrganizationID(ctx) {
+		return model.Vehicle{}, model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
+	return vehicle, nil
 }
 
 // List always scopes to the current organization: filters.OrganizationID
@@ -51,11 +62,33 @@ func (s *VehicleService) Count(ctx context.Context, filters model.VehicleFilters
 	return s.repo.Count(ctx, filters)
 }
 
+// Update fails with ErrCodeVehicleNotFound the same way Get does for a
+// vehicle belonging to a different organization. vehicle.OrganizationID is
+// always overwritten with the vehicle's existing (verified) organization —
+// never trusted from the caller — so this can't be used to move a vehicle
+// into a different organization.
 func (s *VehicleService) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
+	existing, err := s.repo.Get(ctx, vehicle.ID)
+	if err != nil {
+		return model.Vehicle{}, err
+	}
+	if existing.OrganizationID != utils.OrganizationID(ctx) {
+		return model.Vehicle{}, model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
+	vehicle.OrganizationID = existing.OrganizationID
 	return s.repo.Update(ctx, vehicle)
 }
 
+// Delete fails with ErrCodeVehicleNotFound the same way Get does for a
+// vehicle belonging to a different organization.
 func (s *VehicleService) Delete(ctx context.Context, id model.ID) error {
+	existing, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing.OrganizationID != utils.OrganizationID(ctx) {
+		return model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
 	return s.repo.Delete(ctx, id)
 }
 

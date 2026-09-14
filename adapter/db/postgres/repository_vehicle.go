@@ -72,10 +72,52 @@ func (r *VehicleRepository) Get(ctx context.Context, id model.ID) (model.Vehicle
 	return vehicle, nil
 }
 
+// vehicleOrderBy translates VehicleFilters' sort fields into a safe ORDER
+// BY clause — the column/direction always come from the fixed switches
+// below, never straight from request input, so this can't be abused for
+// SQL injection. Defaults to created_at DESC when SortBy is unset; a set
+// SortBy defaults to ascending when SortDir isn't also set.
+func vehicleOrderBy(filters model.VehicleFilters) string {
+	column := "created_at"
+	direction := "DESC"
+
+	switch filters.SortBy {
+	case model.VehicleSortByPlateNumber:
+		column = "plate_number"
+		direction = "ASC"
+	case model.VehicleSortByStatus:
+		column = "status"
+		direction = "ASC"
+	case model.VehicleSortByCreatedAt:
+		column = "created_at"
+		direction = "ASC"
+	case model.VehicleSortByUpdatedAt:
+		column = "updated_at"
+		direction = "ASC"
+	}
+
+	switch filters.SortDir {
+	case model.SortDirectionAsc:
+		direction = "ASC"
+	case model.SortDirectionDesc:
+		direction = "DESC"
+	}
+
+	return column + " " + direction
+}
+
 func (r *VehicleRepository) List(ctx context.Context, filters model.VehicleFilters) (model.List[model.Vehicle], error) {
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.VehicleDefaultPageSize
+	}
+
 	builder := psql.Select(vehicleColumns...).
 		From("vehicles").
-		OrderBy("created_at DESC")
+		OrderBy(vehicleOrderBy(filters)).
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
 
 	builder = applyVehicleFilters(builder, filters)
 
@@ -128,6 +170,9 @@ func applyVehicleFilters(builder sq.SelectBuilder, filters model.VehicleFilters)
 	}
 	if filters.GroupID != "" {
 		builder = builder.Where(sq.Eq{"group_id": string(filters.GroupID)})
+	}
+	if filters.Search != "" {
+		builder = builder.Where(sq.ILike{"plate_number": "%" + filters.Search + "%"})
 	}
 	return builder
 }

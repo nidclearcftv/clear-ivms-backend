@@ -27,6 +27,16 @@ type GroupRepository interface {
 	CountFromAccount(ctx context.Context, accountID model.ID) (int, error)
 	AddAccount(ctx context.Context, groupID, accountID model.ID) error
 	RemoveAccount(ctx context.Context, groupID, accountID model.ID) error
+
+	// AddVehicle assigns vehicleID to groupID — a vehicle belongs to at
+	// most one group at a time, so this moves it out of whichever group it
+	// previously belonged to, if any. Vehicle membership has no separate
+	// List method: see model.VehicleFilters.GroupID, used via the ordinary
+	// VehicleService.List instead.
+	AddVehicle(ctx context.Context, groupID, vehicleID model.ID) error
+	// RemoveVehicle unassigns vehicleID from groupID, only if it currently
+	// belongs to that group.
+	RemoveVehicle(ctx context.Context, groupID, vehicleID model.ID) error
 }
 
 // GroupService is the driving (primary) port exposing group-related
@@ -47,4 +57,7 @@ type GroupService interface {
 	// group.
 	AddAccount(ctx context.Context, groupID, accountID model.ID) error
 	RemoveAccount(ctx context.Context, groupID, accountID model.ID) error
+
+	AddVehicle(ctx context.Context, groupID, vehicleID model.ID) error
+	RemoveVehicle(ctx context.Context, groupID, vehicleID model.ID) error
 }

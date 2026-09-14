@@ -77,6 +77,7 @@ func main() {
 	accountRepository := postgres.NewAccountRepository(db)
 	organizationRepository := postgres.NewOrganizationRepository(db)
 	brandingRepository := postgres.NewBrandingRepository(db)
+	groupRepository := postgres.NewGroupRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
@@ -114,6 +115,15 @@ func main() {
 		log.Fatalw("failed to create branding service", "error", err)
 	}
 
+	groupService, err := service.NewGroupService(service.GroupServiceOptions{
+		Repository: groupRepository,
+		Accounts:   accountRepository,
+		Vehicles:   vehicleRepository,
+	})
+	if err != nil {
+		log.Fatalw("failed to create group service", "error", err)
+	}
+
 	if envOptions.SeedAdminEmail != "" && envOptions.SeedAdminPassword != "" {
 		seedService, err := service.NewSeedService(service.SeedOptions{
 			Organizations:    organizationService,
@@ -142,6 +152,7 @@ func main() {
 		AccountService:       accountService,
 		OrganizationService:  organizationService,
 		BrandingService:      brandingService,
+		GroupService:         groupService,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)

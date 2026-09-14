@@ -29,15 +29,44 @@ type Vehicle struct {
 	UpdatedAt      time.Time
 }
 
-// VehicleFilters narrows a vehicle listing. OrganizationID is set by
-// VehicleService.List from the request's context (see utils.OrganizationID),
-// not by callers directly — vehicles are always scoped to the current
-// organization. GroupID, if set, additionally narrows to a single group.
+// VehicleSortField is a column VehicleFilters.SortBy can order List by.
+type VehicleSortField string
+
+const (
+	VehicleSortByPlateNumber VehicleSortField = "plateNumber"
+	VehicleSortByStatus      VehicleSortField = "status"
+	VehicleSortByCreatedAt   VehicleSortField = "createdAt"
+	VehicleSortByUpdatedAt   VehicleSortField = "updatedAt"
+)
+
+// VehicleDefaultPageSize and VehicleMaxPageSize bound
+// VehicleFilters.PageSize: unset (zero) defaults to
+// VehicleDefaultPageSize, and any larger value is capped at
+// VehicleMaxPageSize.
+const (
+	VehicleDefaultPageSize = 20
+	VehicleMaxPageSize     = 100
+)
+
+// VehicleFilters narrows/orders/paginates a vehicle listing. OrganizationID
+// is set by VehicleService.List from the request's context (see
+// utils.OrganizationID), not by callers directly — vehicles are always
+// scoped to the current organization. GroupID, if set, additionally
+// narrows to a single group. Search, when set, matches vehicles whose
+// plate number contains it (case-insensitive). SortBy defaults to
+// createdAt (descending) when unset; SortDir defaults to ascending when
+// SortBy is set but SortDir isn't. Page defaults to 1 and PageSize to
+// VehicleDefaultPageSize when unset.
 type VehicleFilters struct {
 	OrganizationID ID
-	GroupID        ID `form:"groupId"`
+	GroupID        ID                `form:"groupId"`
+	Search         string            `form:"search"`
+	SortBy         VehicleSortField  `form:"sortBy" binding:"omitempty,oneof=plateNumber status createdAt updatedAt"`
+	SortDir        SortDirection     `form:"sortDir" binding:"omitempty,oneof=asc desc"`
+	Page           int               `form:"page" binding:"omitempty,min=1"`
+	PageSize       int               `form:"pageSize" binding:"omitempty,min=1,max=100"`
 }
 
 func (f *VehicleFilters) String() string {
-	return "organization_id:" + string(f.OrganizationID) + ":group_id:" + string(f.GroupID)
+	return "organization_id:" + string(f.OrganizationID) + ":group_id:" + string(f.GroupID) + ":search:" + f.Search + ":sort_by:" + string(f.SortBy) + ":sort_dir:" + string(f.SortDir)
 }

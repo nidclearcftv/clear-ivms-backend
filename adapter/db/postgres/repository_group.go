@@ -69,8 +69,47 @@ func (r *GroupRepository) Get(ctx context.Context, id model.ID) (model.Group, er
 	return group, nil
 }
 
+// groupOrderBy translates GroupFilters' sort fields into a safe ORDER BY
+// clause — the column/direction always come from the fixed switches below,
+// never straight from request input, so this can't be abused for SQL
+// injection. Defaults to created_at DESC when SortBy is unset; a set
+// SortBy defaults to ascending when SortDir isn't also set.
+func groupOrderBy(filters model.GroupFilters) string {
+	column := "created_at"
+	direction := "DESC"
+
+	switch filters.SortBy {
+	case model.GroupSortByName:
+		column = "name"
+		direction = "ASC"
+	case model.GroupSortByCreatedAt:
+		column = "created_at"
+		direction = "ASC"
+	case model.GroupSortByUpdatedAt:
+		column = "updated_at"
+		direction = "ASC"
+	}
+
+	switch filters.SortDir {
+	case model.SortDirectionAsc:
+		direction = "ASC"
+	case model.SortDirectionDesc:
+		direction = "DESC"
+	}
+
+	return column + " " + direction
+}
+
 func (r *GroupRepository) List(ctx context.Context, filters model.GroupFilters) (model.List[model.Group], error) {
-	builder := applyGroupFilters(psql.Select(groupColumns...).From("groups").OrderBy("created_at DESC"), filters)
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.GroupDefaultPageSize
+	}
+
+	builder := applyGroupFilters(psql.Select(groupColumns...).From("groups").OrderBy(groupOrderBy(filters)), filters).
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
 
 	query, args, err := builder.ToSql()
 	if err != nil {
@@ -118,6 +157,9 @@ func (r *GroupRepository) Count(ctx context.Context, filters model.GroupFilters)
 func applyGroupFilters(builder sq.SelectBuilder, filters model.GroupFilters) sq.SelectBuilder {
 	if filters.OrganizationID != "" {
 		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
+	}
+	if filters.Search != "" {
+		builder = builder.Where(sq.ILike{"name": "%" + filters.Search + "%"})
 	}
 	return builder
 }
@@ -254,6 +296,51 @@ func (r *GroupRepository) RemoveAccount(ctx context.Context, groupID, accountID 
 
 	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
 		return fmt.Errorf("postgres: failed to remove account from group: %w", err)
+	}
+	return nil
+}
+
+// AddVehicle assigns vehicleID to groupID, moving it out of whichever
+// group (if any) it previously belonged to — a vehicle belongs to at most
+// one group at a time (vehicles.group_id is a plain nullable FK, not a
+// join table, unlike account_groups). Idempotent: re-adding a vehicle
+// already in this group is a no-op. 0 rows affected means vehicleID
+// doesn't exist.
+func (r *GroupRepository) AddVehicle(ctx context.Context, groupID, vehicleID model.ID) error {
+	query, args, err := psql.Update("vehicles").
+		Set("group_id", string(groupID)).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": string(vehicleID)}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build add vehicle to group query: %w", err)
+	}
+
+	tag, err := r.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to add vehicle to group: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.NewError(model.ErrCodeVehicleNotFound, nil)
+	}
+	return nil
+}
+
+// RemoveVehicle unassigns vehicleID from groupID — only if it currently
+// belongs to that group, so removing a vehicle that's already been moved
+// elsewhere (or was never in this group) is a no-op, not an error.
+func (r *GroupRepository) RemoveVehicle(ctx context.Context, groupID, vehicleID model.ID) error {
+	query, args, err := psql.Update("vehicles").
+		Set("group_id", nil).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": string(vehicleID), "group_id": string(groupID)}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build remove vehicle from group query: %w", err)
+	}
+
+	if _, err := r.db.Pool.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("postgres: failed to remove vehicle from group: %w", err)
 	}
 	return nil
 }
