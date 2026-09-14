@@ -24,6 +24,59 @@ func NewOrganizationRepository(db *DB) *OrganizationRepository {
 	return &OrganizationRepository{db: db}
 }
 
+// organizationOrderBy translates OrganizationFilters' sort fields into a
+// safe ORDER BY clause — the column/direction always come from the fixed
+// switches below, never straight from request input, so this can't be
+// abused for SQL injection. Defaults to created_at DESC when SortBy is
+// unset; a set SortBy defaults to ascending when SortDir isn't also set.
+func organizationOrderBy(filters model.OrganizationFilters) string {
+	column := "created_at"
+	direction := "DESC"
+
+	switch filters.SortBy {
+	case model.OrganizationSortByName:
+		column = "name"
+		direction = "ASC"
+	case model.OrganizationSortByCreatedAt:
+		column = "created_at"
+		direction = "ASC"
+	case model.OrganizationSortByUpdatedAt:
+		column = "updated_at"
+		direction = "ASC"
+	}
+
+	switch filters.SortDir {
+	case model.SortDirectionAsc:
+		direction = "ASC"
+	case model.SortDirectionDesc:
+		direction = "DESC"
+	}
+
+	return column + " " + direction
+}
+
+// organizationWhereClauses builds the WHERE conditions for filters.Search
+// (case-insensitive match against name) and the CreatedFrom/CreatedTo date
+// range, in the order they should be ANDed. Returns an empty slice when no
+// filter narrows the result set.
+func organizationWhereClauses(filters model.OrganizationFilters) []sq.Sqlizer {
+	var clauses []sq.Sqlizer
+
+	if filters.Search != "" {
+		clauses = append(clauses, sq.ILike{"name": "%" + filters.Search + "%"})
+	}
+	if filters.CreatedFrom != nil {
+		clauses = append(clauses, sq.GtOrEq{"created_at": *filters.CreatedFrom})
+	}
+	if filters.CreatedTo != nil {
+		// CreatedTo is a calendar date with no time component; include the
+		// entire day by comparing against the start of the following day.
+		clauses = append(clauses, sq.Lt{"created_at": filters.CreatedTo.AddDate(0, 0, 1)})
+	}
+
+	return clauses
+}
+
 func (r *OrganizationRepository) Create(ctx context.Context, organization model.Organization) (model.Organization, error) {
 	query, args, err := psql.Insert("organizations").
 		Columns("name").
@@ -64,13 +117,23 @@ func (r *OrganizationRepository) Get(ctx context.Context, id model.ID) (model.Or
 	return organization, nil
 }
 
-// List ignores filters for now: model.OrganizationFilters carries no
-// fields yet.
 func (r *OrganizationRepository) List(ctx context.Context, filters model.OrganizationFilters) (model.List[model.Organization], error) {
-	query, args, err := psql.Select(organizationColumns...).
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.OrganizationDefaultPageSize
+	}
+
+	builder := psql.Select(organizationColumns...).
 		From("organizations").
-		OrderBy("created_at DESC").
-		ToSql()
+		OrderBy(organizationOrderBy(filters)).
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
+	for _, clause := range organizationWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return model.List[model.Organization]{}, fmt.Errorf("postgres: failed to build list organizations query: %w", err)
 	}
@@ -95,9 +158,13 @@ func (r *OrganizationRepository) List(ctx context.Context, filters model.Organiz
 	return list, nil
 }
 
-// Count ignores filters for now, same reason as List.
 func (r *OrganizationRepository) Count(ctx context.Context, filters model.OrganizationFilters) (int, error) {
-	query, args, err := psql.Select("COUNT(*)").From("organizations").ToSql()
+	builder := psql.Select("COUNT(*)").From("organizations")
+	for _, clause := range organizationWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("postgres: failed to build count organizations query: %w", err)
 	}
