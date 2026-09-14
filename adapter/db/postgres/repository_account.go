@@ -66,12 +66,39 @@ func (r *AccountRepository) Get(ctx context.Context, id model.ID) (model.Account
 	return account, nil
 }
 
-// List ignores filters for now: model.AccountFilters carries no fields yet.
+// accountWhereClauses builds the WHERE conditions for filters.Search
+// (case-insensitive match against name or email). Returns an empty slice
+// when Search is unset.
+func accountWhereClauses(filters model.AccountFilters) []sq.Sqlizer {
+	if filters.Search == "" {
+		return nil
+	}
+	pattern := "%" + filters.Search + "%"
+	return []sq.Sqlizer{
+		sq.Or{
+			sq.ILike{"name": pattern},
+			sq.ILike{"email": pattern},
+		},
+	}
+}
+
 func (r *AccountRepository) List(ctx context.Context, filters model.AccountFilters) (model.List[model.Account], error) {
-	query, args, err := psql.Select(accountColumns...).
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.AccountDefaultPageSize
+	}
+
+	builder := psql.Select(accountColumns...).
 		From("accounts").
-		OrderBy("created_at DESC").
-		ToSql()
+		OrderBy("name ASC").
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
+	for _, clause := range accountWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return model.List[model.Account]{}, fmt.Errorf("postgres: failed to build list accounts query: %w", err)
 	}
@@ -96,9 +123,13 @@ func (r *AccountRepository) List(ctx context.Context, filters model.AccountFilte
 	return list, nil
 }
 
-// Count ignores filters for now, same reason as List.
 func (r *AccountRepository) Count(ctx context.Context, filters model.AccountFilters) (int, error) {
-	query, args, err := psql.Select("COUNT(*)").From("accounts").ToSql()
+	builder := psql.Select("COUNT(*)").From("accounts")
+	for _, clause := range accountWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("postgres: failed to build count accounts query: %w", err)
 	}
