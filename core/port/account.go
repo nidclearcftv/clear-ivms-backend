@@ -56,10 +56,10 @@ type AccountRepository interface {
 	// IsMemberOfOrganization reports whether accountID belongs to
 	// organizationID.
 	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
-	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
+	ListFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (model.List[model.Account], error)
 	// CountFromOrganization is to ListFromOrganization what Count is to
 	// List.
-	CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error)
+	CountFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (int, error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
 
@@ -113,8 +113,8 @@ type AccountService interface {
 	// organizationID. Cached (see Authenticate above for why), invalidated
 	// by AddOrganization/RemoveOrganization.
 	IsMemberOfOrganization(ctx context.Context, accountID, organizationID model.ID) (bool, error)
-	ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error)
-	CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error)
+	ListFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (model.List[model.Account], error)
+	CountFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (int, error)
 	AddOrganization(ctx context.Context, accountID, organizationID model.ID) error
 	RemoveOrganization(ctx context.Context, accountID, organizationID model.ID) error
 

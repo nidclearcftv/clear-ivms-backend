@@ -284,12 +284,12 @@ func (s *AccountService) IsMemberOfOrganization(ctx context.Context, accountID, 
 	})
 }
 
-func (s *AccountService) ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error) {
-	return s.repo.ListFromOrganization(ctx, organizationID)
+func (s *AccountService) ListFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (model.List[model.Account], error) {
+	return s.repo.ListFromOrganization(ctx, organizationID, filters)
 }
 
-func (s *AccountService) CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error) {
-	return s.repo.CountFromOrganization(ctx, organizationID)
+func (s *AccountService) CountFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (int, error) {
+	return s.repo.CountFromOrganization(ctx, organizationID, filters)
 }
 
 // AddOrganization invalidates the cache entry IsMemberOfOrganization

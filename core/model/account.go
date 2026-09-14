@@ -35,17 +35,31 @@ const (
 	AccountMaxPageSize     = 100
 )
 
-// AccountFilters narrows/paginates an account listing. Search, when set,
-// matches accounts whose name or email contains it (case-insensitive).
-// Page defaults to 1 and PageSize to AccountDefaultPageSize when unset.
+// AccountSortField is a column AccountFilters.SortBy can order List by.
+type AccountSortField string
+
+const (
+	AccountSortByName      AccountSortField = "name"
+	AccountSortByEmail     AccountSortField = "email"
+	AccountSortByCreatedAt AccountSortField = "createdAt"
+	AccountSortByUpdatedAt AccountSortField = "updatedAt"
+)
+
+// AccountFilters narrows/orders/paginates an account listing. Search, when
+// set, matches accounts whose name or email contains it (case-insensitive).
+// SortBy defaults to name (ascending) when unset; SortDir defaults to
+// ascending when SortBy is set but SortDir isn't. Page defaults to 1 and
+// PageSize to AccountDefaultPageSize when unset.
 type AccountFilters struct {
-	Search   string `form:"search"`
-	Page     int    `form:"page" binding:"omitempty,min=1"`
-	PageSize int    `form:"pageSize" binding:"omitempty,min=1,max=100"`
+	Search   string           `form:"search"`
+	SortBy   AccountSortField `form:"sortBy" binding:"omitempty,oneof=name email createdAt updatedAt"`
+	SortDir  SortDirection    `form:"sortDir" binding:"omitempty,oneof=asc desc"`
+	Page     int              `form:"page" binding:"omitempty,min=1"`
+	PageSize int              `form:"pageSize" binding:"omitempty,min=1,max=100"`
 }
 
 func (f *AccountFilters) String() string {
-	return "search:" + f.Search
+	return "search:" + f.Search + ":sort_by:" + string(f.SortBy) + ":sort_dir:" + string(f.SortDir)
 }
 
 func AccountKey(id ID) string {

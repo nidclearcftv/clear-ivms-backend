@@ -66,6 +66,41 @@ func (r *AccountRepository) Get(ctx context.Context, id model.ID) (model.Account
 	return account, nil
 }
 
+// accountOrderBy translates AccountFilters' sort fields into a safe
+// ORDER BY clause — the column/direction always come from the fixed
+// switches below, never straight from request input, so this can't be
+// abused for SQL injection. Defaults to name ASC when SortBy is unset,
+// matching List's pre-sorting behavior; a set SortBy defaults to ascending
+// when SortDir isn't also set.
+func accountOrderBy(filters model.AccountFilters) string {
+	column := "name"
+	direction := "ASC"
+
+	switch filters.SortBy {
+	case model.AccountSortByName:
+		column = "name"
+		direction = "ASC"
+	case model.AccountSortByEmail:
+		column = "email"
+		direction = "ASC"
+	case model.AccountSortByCreatedAt:
+		column = "created_at"
+		direction = "ASC"
+	case model.AccountSortByUpdatedAt:
+		column = "updated_at"
+		direction = "ASC"
+	}
+
+	switch filters.SortDir {
+	case model.SortDirectionAsc:
+		direction = "ASC"
+	case model.SortDirectionDesc:
+		direction = "DESC"
+	}
+
+	return column + " " + direction
+}
+
 // accountWhereClauses builds the WHERE conditions for filters.Search
 // (case-insensitive match against name or email). Returns an empty slice
 // when Search is unset.
@@ -91,7 +126,7 @@ func (r *AccountRepository) List(ctx context.Context, filters model.AccountFilte
 
 	builder := psql.Select(accountColumns...).
 		From("accounts").
-		OrderBy("name ASC").
+		OrderBy(accountOrderBy(filters)).
 		Limit(uint64(pageSize)).
 		Offset(uint64((page - 1) * pageSize))
 	for _, clause := range accountWhereClauses(filters) {
@@ -510,13 +545,25 @@ func (r *AccountRepository) IsMemberOfOrganization(ctx context.Context, accountI
 	})
 }
 
-func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizationID model.ID) (model.List[model.Account], error) {
-	query, args, err := psql.Select("a.id", "a.name", "a.email", "a.phone_number", "a.type", "a.blocked", "a.created_at", "a.updated_at").
+func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (model.List[model.Account], error) {
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.AccountDefaultPageSize
+	}
+
+	builder := psql.Select("a.id", "a.name", "a.email", "a.phone_number", "a.type", "a.blocked", "a.created_at", "a.updated_at").
 		From("accounts a").
 		Join("account_organizations ao ON ao.account_id = a.id").
 		Where(sq.Eq{"ao.organization_id": string(organizationID)}).
-		OrderBy("a.created_at DESC").
-		ToSql()
+		OrderBy(accountOrderBy(filters)).
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize))
+	for _, clause := range accountWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return model.List[model.Account]{}, fmt.Errorf("postgres: failed to build list accounts from organization query: %w", err)
 	}
@@ -532,7 +579,7 @@ func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizati
 		return model.List[model.Account]{}, err
 	}
 
-	total, err := r.CountFromOrganization(ctx, organizationID)
+	total, err := r.CountFromOrganization(ctx, organizationID, filters)
 	if err != nil {
 		return model.List[model.Account]{}, err
 	}
@@ -542,12 +589,16 @@ func (r *AccountRepository) ListFromOrganization(ctx context.Context, organizati
 }
 
 // CountFromOrganization is to ListFromOrganization what Count is to List.
-func (r *AccountRepository) CountFromOrganization(ctx context.Context, organizationID model.ID) (int, error) {
-	query, args, err := psql.Select("COUNT(*)").
+func (r *AccountRepository) CountFromOrganization(ctx context.Context, organizationID model.ID, filters model.AccountFilters) (int, error) {
+	builder := psql.Select("COUNT(*)").
 		From("accounts a").
 		Join("account_organizations ao ON ao.account_id = a.id").
-		Where(sq.Eq{"ao.organization_id": string(organizationID)}).
-		ToSql()
+		Where(sq.Eq{"ao.organization_id": string(organizationID)})
+	for _, clause := range accountWhereClauses(filters) {
+		builder = builder.Where(clause)
+	}
+
+	query, args, err := builder.ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("postgres: failed to build count accounts from organization query: %w", err)
 	}

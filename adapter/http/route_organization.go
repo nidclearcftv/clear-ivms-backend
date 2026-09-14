@@ -88,7 +88,13 @@ func registerOrganizationRoutes(rg *gin.RouterGroup, organizations port.Organiza
 	})
 
 	g.GET("/:id/accounts", func(c *gin.Context) {
-		list, err := accounts.ListFromOrganization(c.Request.Context(), model.ID(c.Param("id")))
+		var filters model.AccountFilters
+		if err := c.ShouldBindQuery(&filters); err != nil {
+			Fail(c, model.ErrCodeInvalidRequest, err.Error())
+			return
+		}
+
+		list, err := accounts.ListFromOrganization(c.Request.Context(), model.ID(c.Param("id")), filters)
 		if err != nil {
 			RespondError(c, err)
 			return
