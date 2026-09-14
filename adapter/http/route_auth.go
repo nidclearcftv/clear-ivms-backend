@@ -77,7 +77,7 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, organ
 		}
 
 		var orgs []model.Organization
-		if organizations != nil {
+		if organizations != nil && account.Type != model.AccountTypeAdmin {
 			list, err := organizations.ListFromAccount(c.Request.Context(), account.ID)
 			if err != nil {
 				RespondError(c, err)
