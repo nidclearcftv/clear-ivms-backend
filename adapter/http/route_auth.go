@@ -32,7 +32,14 @@ func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, organ
 			return
 		}
 
-		account, token, expiresAt, err := accounts.Login(c.Request.Context(), req.Email, req.Password, req.RememberMe)
+		account, token, expiresAt, err := accounts.Login(
+			c.Request.Context(),
+			req.Email,
+			req.Password,
+			req.RememberMe,
+			c.Request.UserAgent(),
+			c.ClientIP(),
+		)
 		if err != nil {
 			RespondError(c, err)
 			return

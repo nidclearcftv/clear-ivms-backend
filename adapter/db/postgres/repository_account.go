@@ -319,9 +319,14 @@ func (r *AccountRepository) GetByEmailWithPassword(ctx context.Context, email st
 }
 
 func (r *AccountRepository) CreateSession(ctx context.Context, session model.AccountSession) (model.AccountSession, error) {
+	// ip_address is INET; pgx's inet codec supports neither encoding a
+	// plain *string into it nor scanning it back out to one (only
+	// net.IPNet/netip.Addr/netip.Prefix), so the value is bound as text and
+	// cast explicitly instead of relying on pgx to encode it as inet
+	// directly — see accountSessionColumns for the matching read-side cast.
 	query, args, err := psql.Insert("account_sessions").
 		Columns("account_id", "token_hash", "user_agent", "ip_address", "expires_at").
-		Values(string(session.AccountID), session.TokenHash, session.UserAgent, session.IPAddress, session.ExpiresAt).
+		Values(string(session.AccountID), session.TokenHash, session.UserAgent, sq.Expr("?::inet", session.IPAddress), session.ExpiresAt).
 		Suffix("RETURNING id, created_at, updated_at").
 		ToSql()
 	if err != nil {
@@ -341,7 +346,11 @@ func (r *AccountRepository) CreateSession(ctx context.Context, session model.Acc
 	return session, nil
 }
 
-var accountSessionColumns = []string{"id", "account_id", "token_hash", "user_agent", "ip_address", "expires_at", "revoked_at", "created_at", "updated_at"}
+// ip_address is cast to text here for the same reason CreateSession casts
+// it going in: pgx's inet codec has no generic scan fallback for *string
+// (unlike most other types), so it's read back out as text instead of
+// relying on pgx to decode INET directly.
+var accountSessionColumns = []string{"id", "account_id", "token_hash", "user_agent", "ip_address::text", "expires_at", "revoked_at", "created_at", "updated_at"}
 
 func (r *AccountRepository) GetSession(ctx context.Context, tokenHash string) (model.AccountSession, error) {
 	query, args, err := psql.Select(accountSessionColumns...).
@@ -363,11 +372,19 @@ func (r *AccountRepository) GetSession(ctx context.Context, tokenHash string) (m
 	return session, nil
 }
 
-func (r *AccountRepository) ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error) {
+func (r *AccountRepository) ListSessions(ctx context.Context, accountID model.ID, filters model.AccountSessionFilters) (model.List[model.AccountSession], error) {
+	page := max(filters.Page, 1)
+	pageSize := filters.PageSize
+	if pageSize < 1 {
+		pageSize = model.AccountSessionDefaultPageSize
+	}
+
 	query, args, err := psql.Select(accountSessionColumns...).
 		From("account_sessions").
 		Where(sq.Eq{"account_id": string(accountID)}).
 		OrderBy("created_at DESC").
+		Limit(uint64(pageSize)).
+		Offset(uint64((page - 1) * pageSize)).
 		ToSql()
 	if err != nil {
 		return model.List[model.AccountSession]{}, fmt.Errorf("postgres: failed to build list account sessions query: %w", err)

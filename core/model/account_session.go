@@ -22,3 +22,20 @@ type AccountSession struct {
 func AccountSessionKey(tokenHash string) string {
 	return "account_session:" + tokenHash
 }
+
+// AccountSessionDefaultPageSize and AccountSessionMaxPageSize bound
+// AccountSessionFilters.PageSize: unset (zero) defaults to
+// AccountSessionDefaultPageSize, and any larger value is capped at
+// AccountSessionMaxPageSize.
+const (
+	AccountSessionDefaultPageSize = 10
+	AccountSessionMaxPageSize     = 100
+)
+
+// AccountSessionFilters paginates an account's session listing, ordered
+// newest-first (see AccountRepository.ListSessions). Page defaults to 1 and
+// PageSize to AccountSessionDefaultPageSize when unset.
+type AccountSessionFilters struct {
+	Page     int `form:"page" binding:"omitempty,min=1"`
+	PageSize int `form:"pageSize" binding:"omitempty,min=1,max=100"`
+}

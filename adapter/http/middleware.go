@@ -55,6 +55,7 @@ func requestLoggerMiddleware(log *zap.SugaredLogger) gin.HandlerFunc {
 			"status", c.Writer.Status(),
 			"duration", time.Since(start),
 			"clientIP", c.ClientIP(),
+			"errors", c.Errors.ByType(gin.ErrorTypePrivate).String(),
 		)
 	}
 }

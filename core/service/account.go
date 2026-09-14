@@ -131,7 +131,7 @@ func (s *AccountService) SetPassword(ctx context.Context, id model.ID, passwordH
 // the new session expires after; the caller (adapter/http) uses the returned
 // expiry to decide whether the session cookie itself should persist across
 // browser restarts.
-func (s *AccountService) Login(ctx context.Context, email, password string, rememberMe bool) (model.Account, string, time.Time, error) {
+func (s *AccountService) Login(ctx context.Context, email, password string, rememberMe bool, userAgent, ipAddress string) (model.Account, string, time.Time, error) {
 	account, passwordHash, err := s.repo.GetByEmailWithPassword(ctx, email)
 	if err != nil {
 		var merr *model.Error
@@ -160,11 +160,19 @@ func (s *AccountService) Login(ctx context.Context, email, password string, reme
 	}
 	expiresAt := time.Now().Add(ttl)
 
-	if _, err := s.repo.CreateSession(ctx, model.AccountSession{
+	session := model.AccountSession{
 		AccountID: account.ID,
 		TokenHash: tokenHash,
 		ExpiresAt: expiresAt,
-	}); err != nil {
+	}
+	if userAgent != "" {
+		session.UserAgent = &userAgent
+	}
+	if ipAddress != "" {
+		session.IPAddress = &ipAddress
+	}
+
+	if _, err := s.repo.CreateSession(ctx, session); err != nil {
 		return model.Account{}, "", time.Time{}, err
 	}
 
@@ -235,8 +243,8 @@ func (s *AccountService) GetSession(ctx context.Context, tokenHash string) (mode
 	return s.repo.GetSession(ctx, tokenHash)
 }
 
-func (s *AccountService) ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error) {
-	return s.repo.ListSessions(ctx, accountID)
+func (s *AccountService) ListSessions(ctx context.Context, accountID model.ID, filters model.AccountSessionFilters) (model.List[model.AccountSession], error) {
+	return s.repo.ListSessions(ctx, accountID, filters)
 }
 
 func (s *AccountService) CountSessions(ctx context.Context, accountID model.ID) (int, error) {

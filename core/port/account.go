@@ -37,7 +37,7 @@ type AccountRepository interface {
 
 	CreateSession(ctx context.Context, session model.AccountSession) (model.AccountSession, error)
 	GetSession(ctx context.Context, tokenHash string) (model.AccountSession, error)
-	ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error)
+	ListSessions(ctx context.Context, accountID model.ID, filters model.AccountSessionFilters) (model.List[model.AccountSession], error)
 	// CountSessions is to ListSessions what Count is to List.
 	CountSessions(ctx context.Context, accountID model.ID) (int, error)
 	// RevokeSession returns the revoked session's token hash (or "" if it
@@ -87,11 +87,14 @@ type AccountService interface {
 	// value to hand back to the client (e.g. as a cookie); only its hash is
 	// ever persisted — and the session's expiry, which the caller uses to
 	// decide how long-lived the token's storage (e.g. a cookie) should be.
-	// rememberMe selects a longer expiry than a normal login. Fails with
-	// ErrCodeInvalidCredentials for either an unknown email or a wrong
-	// password (never distinguished, to avoid leaking which emails are
-	// registered), or ErrCodeAccountBlocked.
-	Login(ctx context.Context, email, password string, rememberMe bool) (model.Account, string, time.Time, error)
+	// rememberMe selects a longer expiry than a normal login. userAgent and
+	// ipAddress are recorded on the created session (empty strings are
+	// stored as unset), purely for the account owner's own reference — see
+	// AccountRepository.ListSessions. Fails with ErrCodeInvalidCredentials
+	// for either an unknown email or a wrong password (never distinguished,
+	// to avoid leaking which emails are registered), or
+	// ErrCodeAccountBlocked.
+	Login(ctx context.Context, email, password string, rememberMe bool, userAgent, ipAddress string) (model.Account, string, time.Time, error)
 	// Logout revokes the session identified by its raw token (as returned
 	// by Login).
 	Logout(ctx context.Context, token string) error
@@ -104,7 +107,7 @@ type AccountService interface {
 
 	CreateSession(ctx context.Context, session model.AccountSession) (model.AccountSession, error)
 	GetSession(ctx context.Context, tokenHash string) (model.AccountSession, error)
-	ListSessions(ctx context.Context, accountID model.ID) (model.List[model.AccountSession], error)
+	ListSessions(ctx context.Context, accountID model.ID, filters model.AccountSessionFilters) (model.List[model.AccountSession], error)
 	CountSessions(ctx context.Context, accountID model.ID) (int, error)
 	RevokeSession(ctx context.Context, id model.ID) error
 	RevokeAllSessions(ctx context.Context, accountID model.ID) error

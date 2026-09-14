@@ -154,7 +154,13 @@ func registerAccountRoutes(rg *gin.RouterGroup, accounts port.AccountService, or
 	})
 
 	g.GET("/:id/sessions", func(c *gin.Context) {
-		list, err := accounts.ListSessions(c.Request.Context(), model.ID(c.Param("id")))
+		var filters model.AccountSessionFilters
+		if err := c.ShouldBindQuery(&filters); err != nil {
+			Fail(c, model.ErrCodeInvalidRequest, err.Error())
+			return
+		}
+
+		list, err := accounts.ListSessions(c.Request.Context(), model.ID(c.Param("id")), filters)
 		if err != nil {
 			RespondError(c, err)
 			return
