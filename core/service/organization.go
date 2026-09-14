@@ -10,12 +10,16 @@ import (
 
 type OrganizationServiceOptions struct {
 	Repository port.OrganizationRepository `validate:"required"`
+
+	// Accounts backs AddAccount's account-type check — see AddAccount.
+	Accounts port.AccountRepository `validate:"required"`
 }
 
 // OrganizationService implements port.OrganizationService by delegating
 // directly to a port.OrganizationRepository.
 type OrganizationService struct {
-	repo port.OrganizationRepository
+	repo     port.OrganizationRepository
+	accounts port.AccountRepository
 }
 
 func NewOrganizationService(opts OrganizationServiceOptions) (*OrganizationService, error) {
@@ -23,7 +27,7 @@ func NewOrganizationService(opts OrganizationServiceOptions) (*OrganizationServi
 		return nil, err
 	}
 
-	return &OrganizationService{repo: opts.Repository}, nil
+	return &OrganizationService{repo: opts.Repository, accounts: opts.Accounts}, nil
 }
 
 func (s *OrganizationService) Create(ctx context.Context, organization model.Organization) (model.Organization, error) {
@@ -58,7 +62,20 @@ func (s *OrganizationService) CountFromAccount(ctx context.Context, accountID mo
 	return s.repo.CountFromAccount(ctx, accountID)
 }
 
+// AddAccount rejects accounts of type admin with
+// ErrCodeAccountTypeNotAllowedInOrganization — admins are platform-wide and
+// aren't meant to be scoped to an organization. See
+// AccountService.AddOrganization for why that path doesn't enforce the same
+// rule.
 func (s *OrganizationService) AddAccount(ctx context.Context, organizationID, accountID model.ID) error {
+	account, err := s.accounts.Get(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if account.Type == model.AccountTypeAdmin {
+		return model.NewError(model.ErrCodeAccountTypeNotAllowedInOrganization, nil)
+	}
+
 	return s.repo.AddAccount(ctx, organizationID, accountID)
 }
 

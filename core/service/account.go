@@ -295,6 +295,11 @@ func (s *AccountService) CountFromOrganization(ctx context.Context, organization
 // AddOrganization invalidates the cache entry IsMemberOfOrganization
 // populates, so the new membership is visible on the very next check
 // instead of waiting out the cache's expiration.
+//
+// Unlike OrganizationService.AddAccount (the HTTP-facing path for admin
+// operators managing an organization's membership), this does not reject
+// admin accounts — SeedService.Seed relies on being able to attach the
+// bootstrap admin account to the default organization.
 func (s *AccountService) AddOrganization(ctx context.Context, accountID, organizationID model.ID) error {
 	if err := s.repo.AddOrganization(ctx, accountID, organizationID); err != nil {
 		return err

@@ -51,6 +51,10 @@ const (
 	// account was passed to a group-membership operation — only accounts
 	// of type user can belong to a group.
 	ErrCodeAccountTypeNotAllowedInGroup ErrorCode = 2007
+	// ErrCodeAccountTypeNotAllowedInOrganization means an admin account was
+	// passed to an organization-membership operation — admins are
+	// platform-wide and aren't meant to be scoped to an organization.
+	ErrCodeAccountTypeNotAllowedInOrganization ErrorCode = 2008
 
 	// Organization errors (resource 3).
 	ErrCodeOrganizationNotFound ErrorCode = 3001
@@ -85,7 +89,8 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeAccountSessionNotFound:       "account session not found",
 	ErrCodeInvalidCredentials:           "invalid email or password",
 	ErrCodeAccountBlocked:               "account is blocked",
-	ErrCodeAccountTypeNotAllowedInGroup: "only accounts of type user can be added to a group",
+	ErrCodeAccountTypeNotAllowedInGroup:        "only accounts of type user can be added to a group",
+	ErrCodeAccountTypeNotAllowedInOrganization: "admin accounts cannot be associated with an organization",
 
 	ErrCodeOrganizationNotFound:    "organization not found",
 	ErrCodeOrganizationHasGroups:   "organization still has one or more groups",

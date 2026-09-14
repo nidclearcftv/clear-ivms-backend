@@ -100,6 +100,7 @@ func main() {
 
 	organizationService, err := service.NewOrganizationService(service.OrganizationServiceOptions{
 		Repository: organizationRepository,
+		Accounts:   accountRepository,
 	})
 	if err != nil {
 		log.Fatalw("failed to create organization service", "error", err)

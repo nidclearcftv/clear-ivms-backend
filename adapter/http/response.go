@@ -37,7 +37,8 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeAccountSessionNotFound:       http.StatusNotFound,
 	model.ErrCodeInvalidCredentials:           http.StatusUnauthorized,
 	model.ErrCodeAccountBlocked:               http.StatusForbidden,
-	model.ErrCodeAccountTypeNotAllowedInGroup: http.StatusBadRequest,
+	model.ErrCodeAccountTypeNotAllowedInGroup:        http.StatusBadRequest,
+	model.ErrCodeAccountTypeNotAllowedInOrganization: http.StatusBadRequest,
 
 	model.ErrCodeBrandingNotFound:            http.StatusNotFound,
 	model.ErrCodeBrandingDomainAlreadyExists: http.StatusConflict,
