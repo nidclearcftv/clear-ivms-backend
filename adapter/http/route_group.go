@@ -65,6 +65,19 @@ func registerGroupRoutes(rg *gin.RouterGroup, groups port.GroupService, accounts
 		OK(c, newGroupListDTO(list))
 	})
 
+	// GetTree assembles the whole organization's fleet hierarchy (every
+	// group nested under its parent, every vehicle under its group, plus
+	// an UnassignedVehicles list) in one call — see
+	// port.GroupService.GetTree.
+	g.GET("/tree", func(c *gin.Context) {
+		tree, err := groups.GetTree(c.Request.Context())
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, newGroupTreeDTO(tree))
+	})
+
 	g.GET("/:id", func(c *gin.Context) {
 		group, err := groups.Get(c.Request.Context(), model.ID(c.Param("id")))
 		if err != nil {

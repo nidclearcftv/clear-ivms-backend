@@ -163,6 +163,31 @@ func (r *VehicleRepository) Count(ctx context.Context, filters model.VehicleFilt
 	return count, nil
 }
 
+// ListAll returns every vehicle in organizationID, ordered by plate
+// number — unpaginated; see VehicleService.ListAll, the only caller.
+func (r *VehicleRepository) ListAll(ctx context.Context, organizationID model.ID) ([]model.Vehicle, error) {
+	query, args, err := psql.Select(vehicleColumns...).
+		From("vehicles").
+		Where(sq.Eq{"organization_id": string(organizationID)}).
+		OrderBy("plate_number ASC").
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to build list all vehicles query: %w", err)
+	}
+
+	rows, err := r.db.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to list all vehicles: %w", err)
+	}
+	defer rows.Close()
+
+	list, err := scanVehicleList(rows)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 // applyVehicleFilters applies filters shared by List and Count.
 func applyVehicleFilters(builder sq.SelectBuilder, filters model.VehicleFilters) sq.SelectBuilder {
 	if filters.OrganizationID != "" {

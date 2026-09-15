@@ -42,6 +42,9 @@ var errorStatusCodes = map[model.ErrorCode]int{
 
 	model.ErrCodeBrandingNotFound:            http.StatusNotFound,
 	model.ErrCodeBrandingDomainAlreadyExists: http.StatusConflict,
+
+	model.ErrCodeGroupNotFound:      http.StatusNotFound,
+	model.ErrCodeGroupInvalidParent: http.StatusBadRequest,
 }
 
 func statusForCode(code model.ErrorCode) int {

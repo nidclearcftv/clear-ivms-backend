@@ -153,6 +153,31 @@ func (r *GroupRepository) Count(ctx context.Context, filters model.GroupFilters)
 	return count, nil
 }
 
+// ListAll returns every group in organizationID, ordered by name —
+// unpaginated; see GroupService.GetTree, the only caller.
+func (r *GroupRepository) ListAll(ctx context.Context, organizationID model.ID) ([]model.Group, error) {
+	query, args, err := psql.Select(groupColumns...).
+		From("groups").
+		Where(sq.Eq{"organization_id": string(organizationID)}).
+		OrderBy("name ASC").
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to build list all groups query: %w", err)
+	}
+
+	rows, err := r.db.Pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to list all groups: %w", err)
+	}
+	defer rows.Close()
+
+	list, err := scanGroupList(rows)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 // applyGroupFilters applies filters shared by List and Count.
 func applyGroupFilters(builder sq.SelectBuilder, filters model.GroupFilters) sq.SelectBuilder {
 	if filters.OrganizationID != "" {

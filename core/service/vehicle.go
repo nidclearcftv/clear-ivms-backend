@@ -62,6 +62,12 @@ func (s *VehicleService) Count(ctx context.Context, filters model.VehicleFilters
 	return s.repo.Count(ctx, filters)
 }
 
+// ListAll returns every vehicle belonging to the current request's
+// organization, unpaginated, ordered by plate number.
+func (s *VehicleService) ListAll(ctx context.Context) ([]model.Vehicle, error) {
+	return s.repo.ListAll(ctx, utils.OrganizationID(ctx))
+}
+
 // Update fails with ErrCodeVehicleNotFound the same way Get does for a
 // vehicle belonging to a different organization. vehicle.OrganizationID is
 // always overwritten with the vehicle's existing (verified) organization —

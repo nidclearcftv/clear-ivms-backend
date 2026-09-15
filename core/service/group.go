@@ -70,7 +70,8 @@ func (s *GroupService) Count(ctx context.Context, filters model.GroupFilters) (i
 // belonging to a different organization. group.OrganizationID is always
 // overwritten with the group's existing (verified) organization — never
 // trusted from the caller — so this can't be used to move a group into a
-// different organization.
+// different organization. If group.ParentID is set, it's also validated by
+// checkParentValid so a group can never become its own ancestor.
 func (s *GroupService) Update(ctx context.Context, group model.Group) (model.Group, error) {
 	existing, err := s.repo.Get(ctx, group.ID)
 	if err != nil {
@@ -80,7 +81,141 @@ func (s *GroupService) Update(ctx context.Context, group model.Group) (model.Gro
 		return model.Group{}, model.NewError(model.ErrCodeGroupNotFound, nil)
 	}
 	group.OrganizationID = existing.OrganizationID
+
+	if group.ParentID != nil {
+		if err := s.checkParentValid(ctx, group.ID, *group.ParentID); err != nil {
+			return model.Group{}, err
+		}
+	}
+
 	return s.repo.Update(ctx, group)
+}
+
+// checkParentValid rejects a proposed new parent (candidateParentID) for
+// groupID with ErrCodeGroupInvalidParent if candidateParentID is groupID
+// itself, or one of groupID's own descendants — either would make groupID
+// an ancestor of its own ancestor, i.e. a cycle. A candidateParentID from a
+// different organization is rejected the same way Get does
+// (ErrCodeGroupNotFound — cross-org is indistinguishable from
+// nonexistent).
+//
+// Implemented with one Get (to validate/org-check candidateParentID) plus
+// one ListAll (the same whole-org fetch GetTree uses) and an in-memory walk
+// of the parent_id chain — a fixed two queries no matter how deep the
+// hierarchy is, instead of one repo.Get per ancestor.
+func (s *GroupService) checkParentValid(ctx context.Context, groupID, candidateParentID model.ID) error {
+	orgID := utils.OrganizationID(ctx)
+
+	parent, err := s.repo.Get(ctx, candidateParentID)
+	if err != nil {
+		return err
+	}
+	if parent.OrganizationID != orgID {
+		return model.NewError(model.ErrCodeGroupNotFound, nil)
+	}
+
+	groups, err := s.repo.ListAll(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	parentByID := make(map[model.ID]*model.ID, len(groups))
+	for _, g := range groups {
+		parentByID[g.ID] = g.ParentID
+	}
+
+	visited := map[model.ID]bool{}
+	currentID := &candidateParentID
+	for currentID != nil {
+		if *currentID == groupID {
+			return model.NewError(model.ErrCodeGroupInvalidParent, nil)
+		}
+		if visited[*currentID] {
+			// Defensive: an unrelated pre-existing cycle. Shouldn't be
+			// reachable given this same guard runs on every Update.
+			return model.NewError(model.ErrCodeGroupInvalidParent, nil)
+		}
+		visited[*currentID] = true
+		currentID = parentByID[*currentID]
+	}
+	return nil
+}
+
+// GetTree assembles every group and vehicle in the current request's
+// organization into a nested hierarchy. A group whose ParentID doesn't
+// resolve to another group in this organization (shouldn't happen given
+// checkParentValid above, but defends against it) is treated as a root
+// rather than dropped; a vehicle whose GroupID doesn't resolve is treated
+// as unassigned the same way.
+func (s *GroupService) GetTree(ctx context.Context) (model.GroupTree, error) {
+	orgID := utils.OrganizationID(ctx)
+
+	groups, err := s.repo.ListAll(ctx, orgID)
+	if err != nil {
+		return model.GroupTree{}, err
+	}
+	vehicles, err := s.vehicles.ListAll(ctx, orgID)
+	if err != nil {
+		return model.GroupTree{}, err
+	}
+
+	groupsByID := make(map[model.ID]model.Group, len(groups))
+	for _, g := range groups {
+		groupsByID[g.ID] = g
+	}
+
+	childIDsByParent := make(map[model.ID][]model.ID, len(groups))
+	var rootIDs []model.ID
+	for _, g := range groups {
+		if g.ParentID != nil {
+			if _, ok := groupsByID[*g.ParentID]; ok {
+				childIDsByParent[*g.ParentID] = append(childIDsByParent[*g.ParentID], g.ID)
+				continue
+			}
+		}
+		rootIDs = append(rootIDs, g.ID)
+	}
+
+	vehiclesByGroup := make(map[model.ID][]model.Vehicle, len(vehicles))
+	var unassigned []model.Vehicle
+	for _, v := range vehicles {
+		if v.GroupID == nil {
+			unassigned = append(unassigned, v)
+			continue
+		}
+		if _, ok := groupsByID[*v.GroupID]; !ok {
+			unassigned = append(unassigned, v)
+			continue
+		}
+		vehiclesByGroup[*v.GroupID] = append(vehiclesByGroup[*v.GroupID], v)
+	}
+
+	// visited bounds the walk against a corrupted/cyclic parent_id chain —
+	// checkParentValid is what actually prevents cycles from ever being
+	// written; this is a pure defensive backstop so GetTree itself can
+	// never recurse forever or duplicate a node even if one slipped
+	// through (e.g. a direct DB edit bypassing the app).
+	visited := make(map[model.ID]bool, len(groups))
+	var build func(id model.ID) model.GroupTreeNode
+	build = func(id model.ID) model.GroupTreeNode {
+		visited[id] = true
+		node := model.GroupTreeNode{Group: groupsByID[id], Vehicles: vehiclesByGroup[id]}
+		for _, childID := range childIDsByParent[id] {
+			if visited[childID] {
+				continue
+			}
+			node.Children = append(node.Children, build(childID))
+		}
+		return node
+	}
+
+	tree := model.GroupTree{UnassignedVehicles: unassigned}
+	for _, id := range rootIDs {
+		if visited[id] {
+			continue
+		}
+		tree.Roots = append(tree.Roots, build(id))
+	}
+	return tree, nil
 }
 
 // Delete fails with ErrCodeGroupNotFound the same way Get does for a group

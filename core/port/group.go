@@ -19,6 +19,10 @@ type GroupRepository interface {
 	// Count reports how many groups match filters — the same filters List
 	// accepts. List uses this to fill model.List.Total.
 	Count(ctx context.Context, filters model.GroupFilters) (int, error)
+	// ListAll returns every group in organizationID, ordered by name —
+	// unpaginated, since assembling a whole-organization tree (see
+	// GroupService.GetTree) needs the complete node set up front.
+	ListAll(ctx context.Context, organizationID model.ID) ([]model.Group, error)
 	Update(ctx context.Context, group model.Group) (model.Group, error)
 	Delete(ctx context.Context, id model.ID) error
 
@@ -48,6 +52,13 @@ type GroupService interface {
 	Count(ctx context.Context, filters model.GroupFilters) (int, error)
 	Update(ctx context.Context, group model.Group) (model.Group, error)
 	Delete(ctx context.Context, id model.ID) error
+
+	// GetTree assembles every group and vehicle in the current request's
+	// organization (see utils.OrganizationID) into a nested hierarchy: each
+	// root is a group with no parent; vehicles attach to the group they
+	// belong to; vehicles with no group are reported separately as
+	// GroupTree.UnassignedVehicles.
+	GetTree(ctx context.Context) (model.GroupTree, error)
 
 	ListFromAccount(ctx context.Context, accountID model.ID) (model.List[model.Group], error)
 	CountFromAccount(ctx context.Context, accountID model.ID) (int, error)

@@ -65,6 +65,9 @@ const (
 
 	// Group errors (resource 5).
 	ErrCodeGroupNotFound ErrorCode = 5001
+	// ErrCodeGroupInvalidParent means the requested parentId would make the
+	// group its own ancestor (a cycle) — see GroupService.checkParentValid.
+	ErrCodeGroupInvalidParent ErrorCode = 5002
 
 	// Branding errors (resource 6).
 	ErrCodeBrandingNotFound ErrorCode = 6001
@@ -96,7 +99,8 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeOrganizationHasGroups:   "organization still has one or more groups",
 	ErrCodeOrganizationHasAccounts: "organization still has one or more accounts",
 
-	ErrCodeGroupNotFound: "group not found",
+	ErrCodeGroupNotFound:      "group not found",
+	ErrCodeGroupInvalidParent: "a fleet can't be moved under one of its own descendants",
 
 	ErrCodeBrandingNotFound:            "branding not found",
 	ErrCodeBrandingDomainAlreadyExists: "a branding for this domain already exists",
