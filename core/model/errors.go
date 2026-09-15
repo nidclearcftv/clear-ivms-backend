@@ -29,6 +29,17 @@ const (
 	// that isn't a member of the organization named in the request).
 	ErrCodeForbidden ErrorCode = 3
 
+	// ErrCodeRecaptchaFailed means a reCAPTCHA response token was missing
+	// or failed verification against Google's siteverify endpoint (e.g.
+	// invalid, expired, or already used) — see adapter/http's /login
+	// handler.
+	ErrCodeRecaptchaFailed ErrorCode = 4
+	// ErrCodeRecaptchaChallengeRequired means a v3 (invisible) token
+	// verified successfully but scored below the configured risk
+	// threshold — the caller must complete a v2 (checkbox) challenge and
+	// retry the request with its token instead.
+	ErrCodeRecaptchaChallengeRequired ErrorCode = 5
+
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
 	// ErrCodeVehicleAlreadyExists means a vehicle with the same IVMS type and
@@ -79,12 +90,14 @@ const (
 // errorMessages maps each ErrorCode to the human-readable, English message
 // returned in the API response's "message" field.
 var errorMessages = map[ErrorCode]string{
-	ErrCodeNone:                 "success",
-	ErrCodeUnknown:              "an unexpected error occurred",
-	ErrCodeInvalidRequest:       "invalid request",
-	ErrCodeForbidden:            "you do not have access to this resource",
-	ErrCodeVehicleNotFound:      "vehicle not found",
-	ErrCodeVehicleAlreadyExists: "a vehicle with this IVMS type and external ID already exists",
+	ErrCodeNone:                       "success",
+	ErrCodeUnknown:                    "an unexpected error occurred",
+	ErrCodeInvalidRequest:             "invalid request",
+	ErrCodeForbidden:                  "you do not have access to this resource",
+	ErrCodeRecaptchaFailed:            "recaptcha verification failed",
+	ErrCodeRecaptchaChallengeRequired: "additional verification required",
+	ErrCodeVehicleNotFound:            "vehicle not found",
+	ErrCodeVehicleAlreadyExists:       "a vehicle with this IVMS type and external ID already exists",
 
 	ErrCodeAccountNotFound:              "account not found",
 	ErrCodeAccountEmailAlreadyExists:    "an account with this email already exists",

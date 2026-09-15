@@ -12,6 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/db/postgres"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/recaptcha"
 	"github.com/nidclearcftv/clear-ivms-backend/core/service"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/env"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/logger"
@@ -34,6 +35,23 @@ type Env struct {
 	SeedAdminName        string `env:"SEED_ADMIN_NAME,default="`
 	SeedAdminEmail       string `env:"SEED_ADMIN_EMAIL,default="`
 	SeedAdminPassword    string `env:"SEED_ADMIN_PASSWORD,default="`
+
+	// RecaptchaEnabled gates /api/v1/login with reCAPTCHA verification —
+	// see httpapi.RecaptchaOptions. Defaults to false so an existing
+	// deployment upgrading to this version isn't suddenly locked out of
+	// login by an unconfigured feature; set it to true only once both
+	// secret keys below are also set.
+	RecaptchaEnabled bool `env:"RECAPTCHA_ENABLED,default=false"`
+	// RecaptchaV3SecretKey/RecaptchaV2SecretKey are the secret keys for
+	// the invisible (v3) and checkbox (v2) reCAPTCHA site keys
+	// respectively — two different reCAPTCHA products, each with its own
+	// site/secret key pair (the site keys themselves are frontend-only
+	// config, not read here).
+	RecaptchaV3SecretKey string `env:"RECAPTCHA_V3_SECRET_KEY,default="`
+	RecaptchaV2SecretKey string `env:"RECAPTCHA_V2_SECRET_KEY,default="`
+	// RecaptchaScoreThreshold is the minimum v3 score (0-1) accepted
+	// without a step-up v2 challenge.
+	RecaptchaScoreThreshold float64 `env:"RECAPTCHA_SCORE_THRESHOLD,default=0.5"`
 }
 
 type App struct {
@@ -143,11 +161,22 @@ func main() {
 		log.Infow("seeded default organization and admin account", "email", envOptions.SeedAdminEmail)
 	}
 
+	recaptchaOptions := httpapi.RecaptchaOptions{
+		Enabled:        envOptions.RecaptchaEnabled,
+		V3SecretKey:    envOptions.RecaptchaV3SecretKey,
+		V2SecretKey:    envOptions.RecaptchaV2SecretKey,
+		ScoreThreshold: envOptions.RecaptchaScoreThreshold,
+	}
+	if envOptions.RecaptchaEnabled {
+		recaptchaOptions.Verifier = recaptcha.NewClient()
+	}
+
 	httpServer, err := httpapi.NewServer(httpapi.Options{
 		Logger:               log,
 		Addr:                 envOptions.HTTPAddr,
 		AllowedOrigins:       envOptions.HTTPAllowedOrigins,
 		AllowInsecureCookies: envOptions.HTTPAllowInsecureCookies,
+		Recaptcha:            recaptchaOptions,
 		VehicleService:       vehicleService,
 		AccountService:       accountService,
 		OrganizationService:  organizationService,

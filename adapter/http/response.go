@@ -27,9 +27,11 @@ type Response[T any] struct {
 // error code that hasn't been mapped yet still fails safely rather than
 // reporting success.
 var errorStatusCodes = map[model.ErrorCode]int{
-	model.ErrCodeUnknown:              http.StatusInternalServerError,
-	model.ErrCodeInvalidRequest:       http.StatusBadRequest,
-	model.ErrCodeForbidden:            http.StatusForbidden,
+	model.ErrCodeUnknown:                    http.StatusInternalServerError,
+	model.ErrCodeInvalidRequest:             http.StatusBadRequest,
+	model.ErrCodeForbidden:                  http.StatusForbidden,
+	model.ErrCodeRecaptchaFailed:            http.StatusBadRequest,
+	model.ErrCodeRecaptchaChallengeRequired: http.StatusBadRequest,
 	model.ErrCodeVehicleNotFound:      http.StatusNotFound,
 	model.ErrCodeVehicleAlreadyExists: http.StatusConflict,
 

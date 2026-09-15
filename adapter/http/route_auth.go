@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -18,17 +20,101 @@ import (
 // for local plain-HTTP testing.
 const sessionCookieName = "session_token"
 
+// RecaptchaOptions gates POST /login with reCAPTCHA verification.
+// Verification happens entirely at the HTTP layer (not inside
+// AccountService/port.AccountService) since it's a request-level
+// precondition on the login attempt, not account domain logic — the same
+// reasoning that keeps AllowInsecureCookies (Options' other login-adjacent
+// setting) out of the account service too.
+type RecaptchaOptions struct {
+	Enabled bool
+
+	// Verifier calls Google's siteverify endpoint. Required when Enabled.
+	Verifier port.RecaptchaVerifier
+
+	// V3SecretKey/V2SecretKey are the secret keys for the invisible (v3)
+	// and checkbox (v2) reCAPTCHA site keys respectively — two different
+	// reCAPTCHA products, each with its own site/secret key pair. Both
+	// required when Enabled.
+	V3SecretKey string
+	V2SecretKey string
+
+	// ScoreThreshold is the minimum v3 score (0-1) accepted without a
+	// step-up v2 challenge. Below it, /login responds with
+	// ErrCodeRecaptchaChallengeRequired instead of completing the login,
+	// so the client can render the v2 checkbox and retry with
+	// RecaptchaChallengeToken. Defaults to 0.5 (see NewServer).
+	ScoreThreshold float64
+}
+
 type loginRequest struct {
 	Email      string `json:"email" binding:"required,email"`
 	Password   string `json:"password" binding:"required"`
 	RememberMe bool   `json:"rememberMe"`
+
+	// RecaptchaToken is the v3 (invisible) token, sent on every login
+	// attempt while reCAPTCHA is enabled. RecaptchaChallengeToken is the
+	// v2 (checkbox) token, sent only on a retry after a previous attempt
+	// returned ErrCodeRecaptchaChallengeRequired. See verifyRecaptcha.
+	RecaptchaToken          string `json:"recaptchaToken"`
+	RecaptchaChallengeToken string `json:"recaptchaChallengeToken"`
 }
 
-func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, organizations port.OrganizationService, cookieSecure bool) {
+// verifyRecaptcha enforces recaptcha on a login attempt, or does nothing
+// if it's disabled. A RecaptchaChallengeToken (the v2 checkbox, completed
+// as a step-up after a previous attempt returned
+// ErrCodeRecaptchaChallengeRequired) is checked first and, if present, is
+// the only thing verified — success always allows the login through, with
+// no further scoring (v2 tokens carry no score). Otherwise the v3
+// (invisible) token is verified and its score decides whether the login
+// can proceed immediately or must be retried with a completed v2
+// challenge: a low score never hard-blocks the attempt by itself, only
+// requires the extra step, since v3 scores alone aren't reliable enough to
+// permanently lock out a real user.
+func verifyRecaptcha(ctx context.Context, recaptcha RecaptchaOptions, req loginRequest) error {
+	if !recaptcha.Enabled {
+		return nil
+	}
+
+	if req.RecaptchaChallengeToken != "" {
+		result, err := recaptcha.Verifier.Verify(ctx, recaptcha.V2SecretKey, req.RecaptchaChallengeToken)
+		if err != nil {
+			return fmt.Errorf("recaptcha: failed to verify challenge token: %w", err)
+		}
+		if !result.Success {
+			return model.NewError(model.ErrCodeRecaptchaFailed, nil)
+		}
+		return nil
+	}
+
+	if req.RecaptchaToken == "" {
+		return model.NewError(model.ErrCodeRecaptchaFailed, nil)
+	}
+
+	result, err := recaptcha.Verifier.Verify(ctx, recaptcha.V3SecretKey, req.RecaptchaToken)
+	if err != nil {
+		return fmt.Errorf("recaptcha: failed to verify token: %w", err)
+	}
+	if !result.Success {
+		return model.NewError(model.ErrCodeRecaptchaFailed, nil)
+	}
+	if result.Score == nil || *result.Score < recaptcha.ScoreThreshold {
+		return model.NewError(model.ErrCodeRecaptchaChallengeRequired, nil)
+	}
+
+	return nil
+}
+
+func registerAuthRoutes(rg *gin.RouterGroup, accounts port.AccountService, organizations port.OrganizationService, cookieSecure bool, recaptcha RecaptchaOptions) {
 	rg.POST("/login", func(c *gin.Context) {
 		var req loginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			Fail(c, model.ErrCodeInvalidRequest, err.Error())
+			return
+		}
+
+		if err := verifyRecaptcha(c.Request.Context(), recaptcha, req); err != nil {
+			RespondError(c, err)
 			return
 		}
 

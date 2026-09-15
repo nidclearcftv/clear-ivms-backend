@@ -27,6 +27,11 @@ const (
 	defaultWriteTimeout        = 10 * time.Second
 	defaultIdleTimeout         = 60 * time.Second
 	defaultShutdownTimeout     = 10 * time.Second
+
+	// defaultRecaptchaScoreThreshold is the minimum v3 score accepted
+	// without a step-up v2 challenge when RecaptchaOptions.ScoreThreshold
+	// isn't set.
+	defaultRecaptchaScoreThreshold = 0.5
 )
 
 type Options struct {
@@ -76,6 +81,10 @@ type Options struct {
 	// frontend isn't served over HTTPS. Never enable it in production.
 	AllowInsecureCookies bool
 
+	// Recaptcha gates /api/v1/login with reCAPTCHA verification. Leave it
+	// at its zero value (Enabled: false) to skip verification entirely.
+	Recaptcha RecaptchaOptions
+
 	// MaxRequestBodyBytes caps request body size to guard against
 	// unbounded-body requests. Defaults to 1 MiB.
 	MaxRequestBodyBytes int64 `validate:"omitempty,gt=0"`
@@ -121,6 +130,15 @@ func NewServer(opts Options) (*Server, error) {
 		opts.ShutdownTimeout = defaultShutdownTimeout
 	}
 
+	if opts.Recaptcha.Enabled {
+		if opts.Recaptcha.Verifier == nil || opts.Recaptcha.V3SecretKey == "" || opts.Recaptcha.V2SecretKey == "" {
+			return nil, fmt.Errorf("http: recaptcha is enabled but Verifier/V3SecretKey/V2SecretKey are not fully configured")
+		}
+		if opts.Recaptcha.ScoreThreshold == 0 {
+			opts.Recaptcha.ScoreThreshold = defaultRecaptchaScoreThreshold
+		}
+	}
+
 	log := opts.Logger
 	if log == nil {
 		log = zap.NewNop().Sugar()
@@ -156,7 +174,7 @@ func NewServer(opts Options) (*Server, error) {
 	}
 
 	if opts.AccountService != nil {
-		registerAuthRoutes(v1, opts.AccountService, opts.OrganizationService, !opts.AllowInsecureCookies)
+		registerAuthRoutes(v1, opts.AccountService, opts.OrganizationService, !opts.AllowInsecureCookies, opts.Recaptcha)
 		registerAccountRoutes(v1, opts.AccountService, opts.OrganizationService)
 		registerVehicleRoutes(v1, opts.VehicleService, opts.AccountService)
 
