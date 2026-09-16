@@ -11,6 +11,7 @@ import (
 // so this response's shape doesn't silently change if VehicleDTO's does.
 type GroupTreeVehicleDTO struct {
 	ID          string    `json:"id"`
+	Name        string    `json:"name"`
 	PlateNumber string    `json:"plateNumber"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -38,6 +39,7 @@ type GroupTreeDTO struct {
 func newGroupTreeVehicleDTO(v model.Vehicle) GroupTreeVehicleDTO {
 	return GroupTreeVehicleDTO{
 		ID:          string(v.ID),
+		Name:        v.Name,
 		PlateNumber: v.PlateNumber,
 		Status:      string(v.Status),
 		CreatedAt:   v.CreatedAt,

@@ -9,14 +9,16 @@ import (
 )
 
 type createVehicleRequest struct {
-	IVMSType    string `json:"ivmsType" binding:"required,oneof=cmsv6"`
+	Name        string `json:"name" binding:"required"`
+	IVMSType    string `json:"ivmsType" binding:"required,oneof=cmsv6 none"`
 	ExternalID  string `json:"externalId" binding:"required"`
 	PlateNumber string `json:"plateNumber" binding:"required"`
 	GroupID     string `json:"groupId"`
 }
 
 type updateVehicleRequest struct {
-	IVMSType    string `json:"ivmsType" binding:"required,oneof=cmsv6"`
+	Name        string `json:"name" binding:"required"`
+	IVMSType    string `json:"ivmsType" binding:"required,oneof=cmsv6 none"`
 	ExternalID  string `json:"externalId" binding:"required"`
 	PlateNumber string `json:"plateNumber" binding:"required"`
 	GroupID     string `json:"groupId"`
@@ -46,6 +48,7 @@ func registerVehicleRoutes(rg *gin.RouterGroup, vehicles port.VehicleService, ac
 		vehicle, err := vehicles.Create(c.Request.Context(), model.Vehicle{
 			OrganizationID: utils.OrganizationID(c.Request.Context()),
 			GroupID:        nullableIDFromRequest(req.GroupID),
+			Name:           req.Name,
 			IVMSType:       model.IVMSTypeFromString(req.IVMSType),
 			ExternalID:     req.ExternalID,
 			PlateNumber:    req.PlateNumber,
@@ -92,6 +95,7 @@ func registerVehicleRoutes(rg *gin.RouterGroup, vehicles port.VehicleService, ac
 			ID:             model.ID(c.Param("id")),
 			OrganizationID: utils.OrganizationID(c.Request.Context()),
 			GroupID:        nullableIDFromRequest(req.GroupID),
+			Name:           req.Name,
 			IVMSType:       model.IVMSTypeFromString(req.IVMSType),
 			ExternalID:     req.ExternalID,
 			PlateNumber:    req.PlateNumber,

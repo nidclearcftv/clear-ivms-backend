@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var vehicleColumns = []string{"id", "organization_id", "group_id", "ivms_type", "external_id", "plate_number", "status", "created_at", "updated_at"}
+var vehicleColumns = []string{"id", "organization_id", "group_id", "name", "ivms_type", "external_id", "plate_number", "status", "created_at", "updated_at"}
 
 // VehicleRepository implements port.VehicleRepository against Postgres.
 type VehicleRepository struct {
@@ -25,8 +25,8 @@ func NewVehicleRepository(db *DB) *VehicleRepository {
 
 func (r *VehicleRepository) Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	query, args, err := psql.Insert("vehicles").
-		Columns("organization_id", "group_id", "ivms_type", "external_id", "plate_number").
-		Values(string(vehicle.OrganizationID), idPtrToStringPtr(vehicle.GroupID), vehicle.IVMSType.String(), vehicle.ExternalID, vehicle.PlateNumber).
+		Columns("organization_id", "group_id", "name", "ivms_type", "external_id", "plate_number").
+		Values(string(vehicle.OrganizationID), idPtrToStringPtr(vehicle.GroupID), vehicle.Name, vehicle.IVMSType.String(), vehicle.ExternalID, vehicle.PlateNumber).
 		Suffix("RETURNING id, created_at, updated_at").
 		ToSql()
 	if err != nil {
@@ -82,6 +82,9 @@ func vehicleOrderBy(filters model.VehicleFilters) string {
 	direction := "DESC"
 
 	switch filters.SortBy {
+	case model.VehicleSortByName:
+		column = "name"
+		direction = "ASC"
 	case model.VehicleSortByPlateNumber:
 		column = "plate_number"
 		direction = "ASC"
@@ -197,7 +200,11 @@ func applyVehicleFilters(builder sq.SelectBuilder, filters model.VehicleFilters)
 		builder = builder.Where(sq.Eq{"group_id": string(filters.GroupID)})
 	}
 	if filters.Search != "" {
-		builder = builder.Where(sq.ILike{"plate_number": "%" + filters.Search + "%"})
+		pattern := "%" + filters.Search + "%"
+		builder = builder.Where(sq.Or{
+			sq.ILike{"name": pattern},
+			sq.ILike{"plate_number": pattern},
+		})
 	}
 	return builder
 }
@@ -206,6 +213,7 @@ func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (
 	query, args, err := psql.Update("vehicles").
 		Set("organization_id", string(vehicle.OrganizationID)).
 		Set("group_id", idPtrToStringPtr(vehicle.GroupID)).
+		Set("name", vehicle.Name).
 		Set("ivms_type", vehicle.IVMSType.String()).
 		Set("external_id", vehicle.ExternalID).
 		Set("plate_number", vehicle.PlateNumber).
@@ -331,7 +339,7 @@ func scanVehicle(row scannableRow) (model.Vehicle, error) {
 		status         string
 	)
 
-	err := row.Scan(&id, &organizationID, &groupID, &ivmsType, &v.ExternalID, &v.PlateNumber, &status, &v.CreatedAt, &v.UpdatedAt)
+	err := row.Scan(&id, &organizationID, &groupID, &v.Name, &ivmsType, &v.ExternalID, &v.PlateNumber, &status, &v.CreatedAt, &v.UpdatedAt)
 	if err != nil {
 		return model.Vehicle{}, err
 	}

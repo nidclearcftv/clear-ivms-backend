@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (1);
+INSERT INTO version (version) VALUES (2);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -84,7 +84,8 @@ CREATE TABLE vehicles (
     id              UUID        PRIMARY KEY DEFAULT uuidv7(),
     organization_id UUID        NOT NULL,
     group_id        UUID,
-    ivms_type       TEXT        NOT NULL CHECK (ivms_type IN ('cmsv6')),
+    name            TEXT        NOT NULL,
+    ivms_type       TEXT        NOT NULL CHECK (ivms_type IN ('cmsv6', 'none')),
     external_id     TEXT        NOT NULL UNIQUE,
     plate_number    TEXT        NOT NULL,
     status          TEXT        NOT NULL DEFAULT 'offline' CHECK (status IN ('online', 'offline')),
