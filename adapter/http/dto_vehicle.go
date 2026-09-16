@@ -6,15 +6,14 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
 )
 
-// VehicleDTO is the wire representation of model.Vehicle. It intentionally
-// excludes IVMSType and ExternalID — which vendor sourced the record, and
-// its ID within that vendor's system — so vendor/adapter details never leak
-// to API consumers.
+// VehicleDTO is the wire representation of model.Vehicle.
 type VehicleDTO struct {
 	ID             string    `json:"id"`
 	OrganizationID string    `json:"organizationId"`
 	GroupID        string    `json:"groupId,omitempty"`
 	Name           string    `json:"name"`
+	IVMSType       string    `json:"ivmsType"`
+	ExternalID     string    `json:"externalId"`
 	PlateNumber    string    `json:"plateNumber"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"createdAt"`
@@ -26,6 +25,8 @@ func newVehicleDTO(v model.Vehicle) VehicleDTO {
 		ID:             string(v.ID),
 		OrganizationID: string(v.OrganizationID),
 		Name:           v.Name,
+		IVMSType:       v.IVMSType.String(),
+		ExternalID:     v.ExternalID,
 		PlateNumber:    v.PlateNumber,
 		Status:         string(v.Status),
 		CreatedAt:      v.CreatedAt,

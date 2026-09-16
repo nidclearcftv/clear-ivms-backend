@@ -72,7 +72,13 @@ func (s *VehicleService) ListAll(ctx context.Context) ([]model.Vehicle, error) {
 // vehicle belonging to a different organization. vehicle.OrganizationID is
 // always overwritten with the vehicle's existing (verified) organization —
 // never trusted from the caller — so this can't be used to move a vehicle
-// into a different organization.
+// into a different organization. IVMSType (which vendor sourced the
+// record) is likewise always overwritten with its existing value — like
+// Status, it's deliberately immutable via Update, since a vehicle can't be
+// reassigned to a different vendor integration after creation. ExternalID
+// (the record's ID within that vendor's system) is NOT preserved this way
+// — unlike IVMSType, callers are expected to resend its current (or
+// corrected) value on every Update.
 func (s *VehicleService) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	existing, err := s.repo.Get(ctx, vehicle.ID)
 	if err != nil {
@@ -82,6 +88,7 @@ func (s *VehicleService) Update(ctx context.Context, vehicle model.Vehicle) (mod
 		return model.Vehicle{}, model.NewError(model.ErrCodeVehicleNotFound, nil)
 	}
 	vehicle.OrganizationID = existing.OrganizationID
+	vehicle.IVMSType = existing.IVMSType
 	return s.repo.Update(ctx, vehicle)
 }
 
