@@ -292,9 +292,10 @@ func (r *VehicleRepository) SetStatus(ctx context.Context, id model.ID, status m
 }
 
 // SetStatusByExternalID is SetStatus keyed by external_id instead of id —
-// what a vendor status webhook/poller has on hand. external_id is globally
-// unique (see the column's own UNIQUE constraint), so this always targets
-// at most one row.
+// what a vendor status webhook/poller has on hand. external_id is only
+// unique per organization (see uq_vehicles_organization_external_id), not
+// globally, so if two organizations happen to register the same
+// vendor-side ID this updates every vehicle that matches it, not just one.
 func (r *VehicleRepository) SetStatusByExternalID(ctx context.Context, externalID string, status model.VehicleStatus) error {
 	query, args, err := psql.Update("vehicles").
 		Set("status", string(status)).

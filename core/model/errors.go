@@ -43,7 +43,8 @@ const (
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
 	// ErrCodeVehicleAlreadyExists means a vehicle with the same external ID
-	// (i.e. the same vendor-side device) is already registered.
+	// (i.e. the same vendor-side device) is already registered in the same
+	// organization.
 	ErrCodeVehicleAlreadyExists ErrorCode = 1002
 
 	// Account errors (resource 2).
