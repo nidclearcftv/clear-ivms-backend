@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/cache/memory"
-	"github.com/nidclearcftv/clear-ivms-backend/adapter/cmsv6"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/db/postgres"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/recaptcha"
@@ -55,8 +54,7 @@ type Env struct {
 }
 
 type App struct {
-	CMSV6 *cmsv6.Server
-	HTTP  *httpapi.Server
+	HTTP *httpapi.Server
 }
 
 func main() {
