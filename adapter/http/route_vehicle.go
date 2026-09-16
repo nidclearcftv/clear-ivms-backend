@@ -10,18 +10,11 @@ import (
 
 type createVehicleRequest struct {
 	Name        string `json:"name"`
-	IVMSType    string `json:"ivmsType" binding:"required,oneof=cmsv6 none"`
 	ExternalID  string `json:"externalId" binding:"required"`
 	PlateNumber string `json:"plateNumber" binding:"required"`
 	GroupID     string `json:"groupId"`
 }
 
-// updateVehicleRequest deliberately excludes IVMSType — see
-// VehicleService.Update, which always preserves the vehicle's existing
-// value for it regardless of what's passed in the model.Vehicle it's
-// given (a vehicle can't be reassigned to a different vendor integration
-// after creation). ExternalID, unlike IVMSType, can be corrected via
-// Update — e.g. fixing a typo made at creation time.
 type updateVehicleRequest struct {
 	Name        string `json:"name"`
 	ExternalID  string `json:"externalId" binding:"required"`
@@ -54,7 +47,6 @@ func registerVehicleRoutes(rg *gin.RouterGroup, vehicles port.VehicleService, ac
 			OrganizationID: utils.OrganizationID(c.Request.Context()),
 			GroupID:        nullableIDFromRequest(req.GroupID),
 			Name:           req.Name,
-			IVMSType:       model.IVMSTypeFromString(req.IVMSType),
 			ExternalID:     req.ExternalID,
 			PlateNumber:    req.PlateNumber,
 		})

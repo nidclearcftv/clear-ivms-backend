@@ -42,8 +42,8 @@ const (
 
 	// Vehicle errors (resource 1).
 	ErrCodeVehicleNotFound ErrorCode = 1001
-	// ErrCodeVehicleAlreadyExists means a vehicle with the same IVMS type and
-	// external ID (i.e. the same vendor-side device) is already registered.
+	// ErrCodeVehicleAlreadyExists means a vehicle with the same external ID
+	// (i.e. the same vendor-side device) is already registered.
 	ErrCodeVehicleAlreadyExists ErrorCode = 1002
 
 	// Account errors (resource 2).
@@ -97,7 +97,7 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeRecaptchaFailed:            "recaptcha verification failed",
 	ErrCodeRecaptchaChallengeRequired: "additional verification required",
 	ErrCodeVehicleNotFound:            "vehicle not found",
-	ErrCodeVehicleAlreadyExists:       "a vehicle with this IVMS type and external ID already exists",
+	ErrCodeVehicleAlreadyExists:       "a vehicle with this external ID already exists",
 
 	ErrCodeAccountNotFound:              "account not found",
 	ErrCodeAccountEmailAlreadyExists:    "an account with this email already exists",

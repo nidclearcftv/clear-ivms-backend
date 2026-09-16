@@ -12,7 +12,6 @@ type VehicleDTO struct {
 	OrganizationID string    `json:"organizationId"`
 	GroupID        string    `json:"groupId,omitempty"`
 	Name           string    `json:"name"`
-	IVMSType       string    `json:"ivmsType"`
 	ExternalID     string    `json:"externalId"`
 	PlateNumber    string    `json:"plateNumber"`
 	Status         string    `json:"status"`
@@ -25,7 +24,6 @@ func newVehicleDTO(v model.Vehicle) VehicleDTO {
 		ID:             string(v.ID),
 		OrganizationID: string(v.OrganizationID),
 		Name:           v.Name,
-		IVMSType:       v.IVMSType.String(),
 		ExternalID:     v.ExternalID,
 		PlateNumber:    v.PlateNumber,
 		Status:         string(v.Status),

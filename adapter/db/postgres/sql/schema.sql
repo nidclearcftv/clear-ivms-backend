@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (2);
+INSERT INTO version (version) VALUES (3);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -85,7 +85,6 @@ CREATE TABLE vehicles (
     organization_id UUID        NOT NULL,
     group_id        UUID,
     name            TEXT        NOT NULL,
-    ivms_type       TEXT        NOT NULL CHECK (ivms_type IN ('cmsv6', 'none')),
     external_id     TEXT        NOT NULL UNIQUE,
     plate_number    TEXT        NOT NULL,
     status          TEXT        NOT NULL DEFAULT 'offline' CHECK (status IN ('online', 'offline')),
@@ -93,8 +92,7 @@ CREATE TABLE vehicles (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT fk_vehicles_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_vehicles_group FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
-    CONSTRAINT uq_vehicles_ivms_type_external_id UNIQUE (ivms_type, external_id)
+    CONSTRAINT fk_vehicles_group FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_vehicles_organization ON vehicles (organization_id);

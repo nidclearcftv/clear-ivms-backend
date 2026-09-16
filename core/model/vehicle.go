@@ -22,7 +22,6 @@ type Vehicle struct {
 	OrganizationID ID
 	GroupID        *ID
 	Name           string
-	IVMSType       IVMSType
 	ExternalID     string
 	PlateNumber    string
 	Status         VehicleStatus
