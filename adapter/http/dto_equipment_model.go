@@ -15,6 +15,7 @@ type EquipmentModelDTO struct {
 	Name            string    `json:"name"`
 	Description     string    `json:"description"`
 	Manufacturer    string    `json:"manufacturer"`
+	Kind            string    `json:"kind"`
 	Features        []string  `json:"features"`
 	Type            string    `json:"type"`
 	Public          bool      `json:"public"`
@@ -35,6 +36,7 @@ func newEquipmentModelDTO(m model.EquipmentModel) EquipmentModelDTO {
 		Name:            m.Name,
 		Description:     m.Description,
 		Manufacturer:    m.Manufacturer,
+		Kind:            m.Kind,
 		Features:        features,
 		Type:            string(m.Type),
 		Public:          m.Public,

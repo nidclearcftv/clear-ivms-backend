@@ -14,6 +14,7 @@ type createEquipmentModelRequest struct {
 	Name            string   `json:"name" binding:"required"`
 	Description     string   `json:"description"`
 	Manufacturer    string   `json:"manufacturer"`
+	Kind            string   `json:"kind" binding:"omitempty,max=50"`
 	Features        []string `json:"features"`
 	Type            string   `json:"type" binding:"required,oneof=primary accessory"`
 	ExternalViewURL string   `json:"externalViewUrl" binding:"omitempty,url"`
@@ -28,6 +29,7 @@ type updateEquipmentModelRequest struct {
 	Name            string   `json:"name" binding:"required"`
 	Description     string   `json:"description"`
 	Manufacturer    string   `json:"manufacturer"`
+	Kind            string   `json:"kind" binding:"omitempty,max=50"`
 	Features        []string `json:"features"`
 	Type            string   `json:"type" binding:"required,oneof=primary accessory"`
 	ExternalViewURL string   `json:"externalViewUrl" binding:"omitempty,url"`
@@ -67,6 +69,7 @@ func registerEquipmentModelRoutes(rg *gin.RouterGroup, equipmentModels port.Equi
 			Name:            req.Name,
 			Description:     req.Description,
 			Manufacturer:    req.Manufacturer,
+			Kind:            req.Kind,
 			Features:        req.Features,
 			Type:            model.EquipmentModelType(req.Type),
 			ExternalViewURL: req.ExternalViewURL,
@@ -115,6 +118,7 @@ func registerEquipmentModelRoutes(rg *gin.RouterGroup, equipmentModels port.Equi
 			Name:            req.Name,
 			Description:     req.Description,
 			Manufacturer:    req.Manufacturer,
+			Kind:            req.Kind,
 			Features:        req.Features,
 			Type:            model.EquipmentModelType(req.Type),
 			ExternalViewURL: req.ExternalViewURL,

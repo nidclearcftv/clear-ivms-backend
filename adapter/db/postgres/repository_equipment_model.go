@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var equipmentModelColumns = []string{"id", "name", "description", "manufacturer", "features", "type", "public", "picture_object_key", "external_view_url", "organization_id", "created_at", "updated_at"}
+var equipmentModelColumns = []string{"id", "name", "description", "manufacturer", "kind", "features", "type", "public", "picture_object_key", "external_view_url", "organization_id", "created_at", "updated_at"}
 
 // EquipmentModelRepository implements port.EquipmentModelRepository
 // against Postgres.
@@ -31,8 +31,8 @@ func (r *EquipmentModelRepository) Create(ctx context.Context, equipmentModel mo
 	equipmentModel.Features = nonNilStrings(equipmentModel.Features)
 
 	query, args, err := psql.Insert("equipment_models").
-		Columns("name", "description", "manufacturer", "features", "type", "external_view_url", "organization_id").
-		Values(equipmentModel.Name, equipmentModel.Description, equipmentModel.Manufacturer, equipmentModel.Features, string(equipmentModel.Type), equipmentModel.ExternalViewURL, string(equipmentModel.OrganizationID)).
+		Columns("name", "description", "manufacturer", "kind", "features", "type", "external_view_url", "organization_id").
+		Values(equipmentModel.Name, equipmentModel.Description, equipmentModel.Manufacturer, equipmentModel.Kind, equipmentModel.Features, string(equipmentModel.Type), equipmentModel.ExternalViewURL, string(equipmentModel.OrganizationID)).
 		Suffix("RETURNING id, public, created_at, updated_at").
 		ToSql()
 	if err != nil {
@@ -206,6 +206,7 @@ func (r *EquipmentModelRepository) Update(ctx context.Context, equipmentModel mo
 		Set("name", equipmentModel.Name).
 		Set("description", equipmentModel.Description).
 		Set("manufacturer", equipmentModel.Manufacturer).
+		Set("kind", equipmentModel.Kind).
 		Set("features", equipmentModel.Features).
 		Set("type", string(equipmentModel.Type)).
 		Set("external_view_url", equipmentModel.ExternalViewURL).
@@ -313,7 +314,7 @@ func scanEquipmentModel(row scannableRow) (model.EquipmentModel, error) {
 		organizationID string
 	)
 
-	err := row.Scan(&id, &m.Name, &m.Description, &m.Manufacturer, &m.Features, &equipmentType, &m.Public, &m.PictureObjectKey, &m.ExternalViewURL, &organizationID, &m.CreatedAt, &m.UpdatedAt)
+	err := row.Scan(&id, &m.Name, &m.Description, &m.Manufacturer, &m.Kind, &m.Features, &equipmentType, &m.Public, &m.PictureObjectKey, &m.ExternalViewURL, &organizationID, &m.CreatedAt, &m.UpdatedAt)
 	if err != nil {
 		return model.EquipmentModel{}, err
 	}

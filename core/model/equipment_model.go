@@ -41,10 +41,15 @@ var EquipmentModelAllowedPictureContentTypes = map[string]bool{
 // user-facing value — never resolved/interpreted by callers outside
 // EquipmentModelService.
 type EquipmentModel struct {
-	ID               ID
-	Name             string
-	Description      string
-	Manufacturer     string
+	ID           ID
+	Name         string
+	Description  string
+	Manufacturer string
+	// Kind is a free-form, caller-defined classification of the equipment
+	// (e.g. "dvr", "cameraip") — capped at 50 characters by the HTTP
+	// layer's binding tag, not validated against a fixed vocabulary here.
+	// Never required.
+	Kind             string
 	Type             EquipmentModelType
 	Public           bool
 	PictureObjectKey *string

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (9);
+INSERT INTO version (version) VALUES (10);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -104,6 +104,7 @@ CREATE TABLE equipment_models (
     name               TEXT        NOT NULL,
     description        TEXT        NOT NULL,
     manufacturer       TEXT        NOT NULL,
+    kind               TEXT        NOT NULL,
     features           TEXT[]      NOT NULL DEFAULT '{}',
     type               TEXT        NOT NULL CHECK (type IN ('primary', 'accessory')),
     public             BOOLEAN     NOT NULL DEFAULT FALSE,
