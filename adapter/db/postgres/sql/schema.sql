@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (5);
+INSERT INTO version (version) VALUES (6);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -113,6 +113,11 @@ CREATE TABLE equipment_models (
 );
 
 CREATE INDEX idx_equipment_models_organization ON equipment_models (organization_id);
+-- Partial: only public models are ever looked up by this column (see
+-- applyEquipmentModelFilters' cross-organization OR public = true), so
+-- indexing just the true rows keeps it small regardless of how many
+-- private models exist.
+CREATE INDEX idx_equipment_models_public ON equipment_models (public) WHERE public;
 
 CREATE TABLE brandings (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),

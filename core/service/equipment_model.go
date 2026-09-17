@@ -32,22 +32,29 @@ func (s *EquipmentModelService) Create(ctx context.Context, equipmentModel model
 }
 
 // Get fails with ErrCodeEquipmentModelNotFound if id exists but belongs
-// to a different organization than the request's — reported the same as
-// a nonexistent id, so a caller can't distinguish "not found" from "not
-// yours" for another organization's equipment model.
+// to a different organization than the request's AND isn't public —
+// reported the same as a nonexistent id, so a caller can't distinguish
+// "not found" from "not yours" for another organization's private
+// equipment model. A public equipment model is readable from any
+// organization (see List), but this does not make it editable — Update,
+// Delete and SetPublic each re-check ownership independently against the
+// repository directly, not through this relaxed check.
 func (s *EquipmentModelService) Get(ctx context.Context, id model.ID) (model.EquipmentModel, error) {
 	equipmentModel, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return model.EquipmentModel{}, err
 	}
-	if equipmentModel.OrganizationID != utils.OrganizationID(ctx) {
+	if equipmentModel.OrganizationID != utils.OrganizationID(ctx) && !equipmentModel.Public {
 		return model.EquipmentModel{}, model.NewError(model.ErrCodeEquipmentModelNotFound, nil)
 	}
 	return equipmentModel, nil
 }
 
-// List always scopes to the current organization: filters.OrganizationID
-// is overwritten from ctx, never trusted from the caller.
+// List scopes to the current organization's own equipment models (public
+// or not) plus every other organization's public equipment models —
+// filters.OrganizationID is overwritten from ctx, never trusted from the
+// caller, but the repository treats it as "at least this organization",
+// not "only this organization" (see applyEquipmentModelFilters).
 func (s *EquipmentModelService) List(ctx context.Context, filters model.EquipmentModelFilters) (model.List[model.EquipmentModel], error) {
 	filters.OrganizationID = utils.OrganizationID(ctx)
 	return s.repo.List(ctx, filters)

@@ -158,9 +158,16 @@ func (r *EquipmentModelRepository) Count(ctx context.Context, filters model.Equi
 }
 
 // applyEquipmentModelFilters applies filters shared by List and Count.
+// filters.OrganizationID scopes to that organization's own equipment
+// models (public or not) OR any organization's public ones — a listing
+// is never limited to strictly one organization's models, since public
+// models are meant to be visible everywhere.
 func applyEquipmentModelFilters(builder sq.SelectBuilder, filters model.EquipmentModelFilters) sq.SelectBuilder {
 	if filters.OrganizationID != "" {
-		builder = builder.Where(sq.Eq{"organization_id": string(filters.OrganizationID)})
+		builder = builder.Where(sq.Or{
+			sq.Eq{"organization_id": string(filters.OrganizationID)},
+			sq.Eq{"public": true},
+		})
 	}
 	if filters.Type != "" {
 		builder = builder.Where(sq.Eq{"type": string(filters.Type)})

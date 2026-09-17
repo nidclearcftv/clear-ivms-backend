@@ -48,8 +48,10 @@ const (
 
 // EquipmentModelFilters narrows/orders/paginates an equipment model
 // listing. OrganizationID is set by EquipmentModelService.List from the
-// request's context (see utils.OrganizationID), not by callers directly —
-// equipment models are always scoped to the current organization. Search,
+// request's context (see utils.OrganizationID), not by callers directly.
+// It scopes the listing to that organization's own equipment models (public
+// or not) plus every other organization's public equipment models — not
+// exclusively to that organization; see applyEquipmentModelFilters. Search,
 // when set, matches equipment models whose name or description contains
 // it (case-insensitive). Type, when set, narrows to that single type.
 // SortBy defaults to createdAt (descending) when unset; SortDir defaults
