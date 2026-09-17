@@ -48,7 +48,10 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeGroupNotFound:      http.StatusNotFound,
 	model.ErrCodeGroupInvalidParent: http.StatusBadRequest,
 
-	model.ErrCodeEquipmentModelNotFound: http.StatusNotFound,
+	model.ErrCodeEquipmentModelNotFound:        http.StatusNotFound,
+	model.ErrCodeEquipmentModelPictureNotFound: http.StatusNotFound,
+
+	model.ErrCodeObjectNotFound: http.StatusNotFound,
 }
 
 func statusForCode(code model.ErrorCode) int {

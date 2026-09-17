@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/nidclearcftv/clear-ivms-backend/core/model"
@@ -135,5 +137,51 @@ func registerEquipmentModelRoutes(rg *gin.RouterGroup, equipmentModels port.Equi
 			return
 		}
 		OK(c, nil)
+	})
+
+	// PUT /:id/picture is how a client uploads (or replaces) the
+	// equipment model's picture — but this backend's own bytes are never
+	// involved: it takes the request's Content-Type header as what the
+	// client intends to upload, validates it, and always responds with a
+	// redirect to a presigned URL the client must then PUT the actual
+	// bytes to directly (see EquipmentModelService.SetPicture — this is
+	// the system's one and only upload pattern, with no direct-proxy
+	// fallback and no separate confirmation step).
+	g.PUT("/:id/picture", func(c *gin.Context) {
+		contentType := c.ContentType()
+		if !model.EquipmentModelAllowedPictureContentTypes[contentType] {
+			Fail(c, model.ErrCodeInvalidRequest, "unsupported picture content type: "+contentType)
+			return
+		}
+
+		url, err := equipmentModels.SetPicture(c.Request.Context(), model.ID(c.Param("id")), contentType)
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.Redirect(http.StatusMovedPermanently, url)
+	})
+
+	// GET /:id/picture always redirects to a presigned URL for the
+	// equipment model's current picture (see
+	// EquipmentModelService.GetPictureURL) — this backend never streams
+	// the bytes itself. A public equipment model's picture is readable
+	// from any organization the same way its other fields are.
+	g.GET("/:id/picture", func(c *gin.Context) {
+		url, err := equipmentModels.GetPictureURL(c.Request.Context(), model.ID(c.Param("id")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		c.Redirect(http.StatusMovedPermanently, url)
+	})
+
+	g.DELETE("/:id/picture", func(c *gin.Context) {
+		equipmentModel, err := equipmentModels.DeletePicture(c.Request.Context(), model.ID(c.Param("id")))
+		if err != nil {
+			RespondError(c, err)
+			return
+		}
+		OK(c, newEquipmentModelDTO(equipmentModel))
 	})
 }

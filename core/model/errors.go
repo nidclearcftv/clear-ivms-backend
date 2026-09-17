@@ -89,6 +89,18 @@ const (
 
 	// Equipment model errors (resource 7).
 	ErrCodeEquipmentModelNotFound ErrorCode = 7001
+	// ErrCodeEquipmentModelPictureNotFound means the equipment model
+	// exists (and is visible to the caller) but has no picture set — see
+	// EquipmentModelService.GetPictureURL.
+	ErrCodeEquipmentModelPictureNotFound ErrorCode = 7002
+
+	// Object storage errors (resource 8).
+	// ErrCodeObjectNotFound means no object exists under the requested
+	// key — see port.ObjectStorage.Get. In practice this should only
+	// surface as a data-integrity anomaly (a stored key whose object was
+	// deleted/lost out from under it), since callers always check for a
+	// key's presence before reading it.
+	ErrCodeObjectNotFound ErrorCode = 8001
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -122,7 +134,10 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeBrandingNotFound:            "branding not found",
 	ErrCodeBrandingDomainAlreadyExists: "a branding for this domain already exists",
 
-	ErrCodeEquipmentModelNotFound: "equipment model not found",
+	ErrCodeEquipmentModelNotFound:        "equipment model not found",
+	ErrCodeEquipmentModelPictureNotFound: "equipment model has no picture",
+
+	ErrCodeObjectNotFound: "object not found",
 }
 
 // MessageForCode returns the registered message for code, falling back to

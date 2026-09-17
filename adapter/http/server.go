@@ -77,6 +77,15 @@ type Options struct {
 	// AccountService is), those routes aren't registered at all.
 	EquipmentModelService port.EquipmentModelService
 
+	// ObjectStorage backs the generic /api/v1/objects/:key read/write
+	// routes (see registerObjectRoutes) — the local stand-in for a real
+	// presigned URL, which adapter/storage/local's PutURL/GetURL point
+	// at. Optional: set this only for a storage driver that needs it
+	// (currently "local"); leave nil for one with real external presigned
+	// URLs (e.g. a future S3 driver), and for nil AccountService, since
+	// these routes require authentication the same as everything else.
+	ObjectStorage port.ObjectStorage
+
 	// AllowedOrigins is the CORS allow-list. Leave empty to disable CORS
 	// entirely: cross-origin browser requests are blocked (the safe
 	// default), same-origin and non-browser clients are unaffected.
@@ -199,6 +208,10 @@ func NewServer(opts Options) (*Server, error) {
 
 		if opts.EquipmentModelService != nil {
 			registerEquipmentModelRoutes(v1, opts.EquipmentModelService, opts.AccountService)
+		}
+
+		if opts.ObjectStorage != nil {
+			registerObjectRoutes(v1, opts.ObjectStorage, opts.AccountService)
 		}
 	}
 

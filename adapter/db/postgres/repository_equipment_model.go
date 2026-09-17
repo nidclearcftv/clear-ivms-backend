@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var equipmentModelColumns = []string{"id", "name", "description", "type", "public", "organization_id", "created_at", "updated_at"}
+var equipmentModelColumns = []string{"id", "name", "description", "type", "public", "picture_object_key", "organization_id", "created_at", "updated_at"}
 
 // EquipmentModelRepository implements port.EquipmentModelRepository
 // against Postgres.
@@ -182,9 +182,9 @@ func applyEquipmentModelFilters(builder sq.SelectBuilder, filters model.Equipmen
 	return builder
 }
 
-// Update never touches public — see SetPublic. RETURNING reads its
-// current (unchanged) value back so the returned model reflects the
-// database's actual state.
+// Update never touches public or picture_object_key — see SetPublic and
+// SetPictureObjectKey. RETURNING reads their current (unchanged) values
+// back so the returned model reflects the database's actual state.
 func (r *EquipmentModelRepository) Update(ctx context.Context, equipmentModel model.EquipmentModel) (model.EquipmentModel, error) {
 	query, args, err := psql.Update("equipment_models").
 		Set("name", equipmentModel.Name).
@@ -193,13 +193,13 @@ func (r *EquipmentModelRepository) Update(ctx context.Context, equipmentModel mo
 		Set("organization_id", string(equipmentModel.OrganizationID)).
 		Set("updated_at", sq.Expr("NOW()")).
 		Where(sq.Eq{"id": string(equipmentModel.ID)}).
-		Suffix("RETURNING public, created_at, updated_at").
+		Suffix("RETURNING public, picture_object_key, created_at, updated_at").
 		ToSql()
 	if err != nil {
 		return model.EquipmentModel{}, fmt.Errorf("postgres: failed to build update equipment model query: %w", err)
 	}
 
-	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&equipmentModel.Public, &equipmentModel.CreatedAt, &equipmentModel.UpdatedAt)
+	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&equipmentModel.Public, &equipmentModel.PictureObjectKey, &equipmentModel.CreatedAt, &equipmentModel.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.EquipmentModel{}, model.NewError(model.ErrCodeEquipmentModelNotFound, err)
@@ -260,6 +260,32 @@ func (r *EquipmentModelRepository) SetPublic(ctx context.Context, id model.ID, p
 	return nil
 }
 
+// SetPictureObjectKey is the only way to change an equipment model's
+// picture reference — Update deliberately excludes the column so a
+// caller can't overwrite it as a side effect of an unrelated field
+// change. key is nil to clear it.
+func (r *EquipmentModelRepository) SetPictureObjectKey(ctx context.Context, id model.ID, key *string) error {
+	query, args, err := psql.Update("equipment_models").
+		Set("picture_object_key", key).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": string(id)}).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("postgres: failed to build set equipment model picture object key query: %w", err)
+	}
+
+	tag, err := r.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("postgres: failed to set equipment model picture object key: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return model.NewError(model.ErrCodeEquipmentModelNotFound, nil)
+	}
+
+	return nil
+}
+
 func scanEquipmentModel(row scannableRow) (model.EquipmentModel, error) {
 	var (
 		m              model.EquipmentModel
@@ -268,7 +294,7 @@ func scanEquipmentModel(row scannableRow) (model.EquipmentModel, error) {
 		organizationID string
 	)
 
-	err := row.Scan(&id, &m.Name, &m.Description, &equipmentType, &m.Public, &organizationID, &m.CreatedAt, &m.UpdatedAt)
+	err := row.Scan(&id, &m.Name, &m.Description, &equipmentType, &m.Public, &m.PictureObjectKey, &organizationID, &m.CreatedAt, &m.UpdatedAt)
 	if err != nil {
 		return model.EquipmentModel{}, err
 	}

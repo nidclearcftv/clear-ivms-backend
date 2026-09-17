@@ -1,1 +1,4 @@
 *.env
+
+# Local object storage adapter's default directory (see OBJECT_STORAGE_LOCAL_PATH).
+/data/

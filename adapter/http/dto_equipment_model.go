@@ -7,12 +7,16 @@ import (
 )
 
 // EquipmentModelDTO is the wire representation of model.EquipmentModel.
+// HasPicture reports whether GET .../picture will return an image —
+// PictureObjectKey itself is a storage implementation detail and never
+// leaves the backend.
 type EquipmentModelDTO struct {
 	ID             string    `json:"id"`
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
 	Type           string    `json:"type"`
 	Public         bool      `json:"public"`
+	HasPicture     bool      `json:"hasPicture"`
 	OrganizationID string    `json:"organizationId"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -25,6 +29,7 @@ func newEquipmentModelDTO(m model.EquipmentModel) EquipmentModelDTO {
 		Description:    m.Description,
 		Type:           string(m.Type),
 		Public:         m.Public,
+		HasPicture:     m.PictureObjectKey != nil,
 		OrganizationID: string(m.OrganizationID),
 		CreatedAt:      m.CreatedAt,
 		UpdatedAt:      m.UpdatedAt,

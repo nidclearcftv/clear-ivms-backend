@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (6);
+INSERT INTO version (version) VALUES (7);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -100,14 +100,15 @@ CREATE INDEX idx_vehicles_organization ON vehicles (organization_id);
 CREATE INDEX idx_vehicles_group ON vehicles (group_id);
 
 CREATE TABLE equipment_models (
-    id              UUID        PRIMARY KEY DEFAULT uuidv7(),
-    name            TEXT        NOT NULL,
-    description     TEXT        NOT NULL,
-    type            TEXT        NOT NULL CHECK (type IN ('primary', 'accessory')),
-    public          BOOLEAN     NOT NULL DEFAULT FALSE,
-    organization_id UUID        NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id                 UUID        PRIMARY KEY DEFAULT uuidv7(),
+    name               TEXT        NOT NULL,
+    description        TEXT        NOT NULL,
+    type               TEXT        NOT NULL CHECK (type IN ('primary', 'accessory')),
+    public             BOOLEAN     NOT NULL DEFAULT FALSE,
+    picture_object_key TEXT,
+    organization_id    UUID        NOT NULL,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT fk_equipment_models_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT
 );

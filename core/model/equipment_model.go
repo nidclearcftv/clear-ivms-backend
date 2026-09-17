@@ -11,19 +11,41 @@ const (
 	EquipmentModelTypeAccessory EquipmentModelType = "accessory"
 )
 
+// EquipmentModelAllowedPictureContentTypes are the only content types an
+// equipment model's picture may be declared as — ordinary
+// web-displayable images, not arbitrary file uploads. Checked by
+// registerEquipmentModelRoutes' PUT /:id/picture against the client's
+// declared Content-Type before it's ever handed a presigned upload URL
+// for it (see EquipmentModelService.SetPicture). This is the only check
+// there is: the actual uploaded bytes go straight to storage, never
+// through this backend, so nothing here re-verifies what was truly
+// written.
+var EquipmentModelAllowedPictureContentTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+	"image/gif":  true,
+}
+
 // EquipmentModel is the domain read model for an organization's equipment
 // catalog entry. Public defaults to false and is deliberately excluded
 // from EquipmentModelService.Update — see SetPublic, the only way to
 // change it, which (unlike every other operation here) is admin-only.
+// PictureObjectKey is nil when no picture has been uploaded; like Public,
+// it's excluded from Update — see SetPicture/DeletePicture, the only way
+// to change it. It identifies an object in a port.ObjectStorage, not a
+// user-facing value — never resolved/interpreted by callers outside
+// EquipmentModelService.
 type EquipmentModel struct {
-	ID             ID
-	Name           string
-	Description    string
-	Type           EquipmentModelType
-	Public         bool
-	OrganizationID ID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID               ID
+	Name             string
+	Description      string
+	Type             EquipmentModelType
+	Public           bool
+	PictureObjectKey *string
+	OrganizationID   ID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // EquipmentModelSortField is a column EquipmentModelFilters.SortBy can

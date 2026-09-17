@@ -20,7 +20,7 @@ import (
 // starts at 1); every version after that needs a matching
 // migrations/migration_<version>.sql. Bump this whenever a new migration
 // file is added.
-const currentVersion = 6
+const currentVersion = 7
 
 type Options struct {
 	Logger *zap.SugaredLogger

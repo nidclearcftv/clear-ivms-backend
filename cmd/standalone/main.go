@@ -12,6 +12,9 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/db/postgres"
 	httpapi "github.com/nidclearcftv/clear-ivms-backend/adapter/http"
 	"github.com/nidclearcftv/clear-ivms-backend/adapter/recaptcha"
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/storage/local"
+	"github.com/nidclearcftv/clear-ivms-backend/adapter/storage/s3"
+	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 	"github.com/nidclearcftv/clear-ivms-backend/core/service"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/env"
 	"github.com/nidclearcftv/clear-ivms-backend/utils/logger"
@@ -25,6 +28,40 @@ type Env struct {
 	HTTPAddr                 string   `env:"HTTP_ADDR,default=:8080"`
 	HTTPAllowedOrigins       []string `env:"HTTP_ALLOWED_ORIGINS,separator=,"`
 	HTTPAllowInsecureCookies bool     `env:"HTTP_ALLOW_INSECURE_COOKIES,default=false"`
+	// HTTPMaxRequestBodyBytes bounds every request body, including
+	// picture uploads (see registerEquipmentModelRoutes' PUT
+	// /:id/picture) — raised well above httpapi's own 1 MiB default so a
+	// normal photo isn't rejected outright.
+	HTTPMaxRequestBodyBytes int64 `env:"HTTP_MAX_REQUEST_BODY_BYTES,default=8388608"`
+	// HTTPPublicBaseURL is this backend's own externally-reachable API
+	// base URL — e.g. the real deployed address, not just "localhost" in
+	// anything but local dev. Used by adapter/storage/local to build URLs
+	// under registerObjectRoutes that a browser can actually reach; see
+	// local.Options.PublicBaseURL.
+	HTTPPublicBaseURL string `env:"HTTP_PUBLIC_BASE_URL,default=http://localhost:8080/api/v1"`
+
+	// ObjectStorageDriver selects the port.ObjectStorage implementation:
+	// "local" (adapter/storage/local) or "s3" (adapter/storage/s3).
+	// Unrecognized values fail startup rather than silently falling back
+	// to something unintended.
+	ObjectStorageDriver string `env:"OBJECT_STORAGE_DRIVER,default=local"`
+	// ObjectStorageLocalPath is the directory adapter/storage/local
+	// stores objects under, only used when ObjectStorageDriver is
+	// "local".
+	ObjectStorageLocalPath string `env:"OBJECT_STORAGE_LOCAL_PATH,default=data/objects"`
+
+	// ObjectStorageS3* configure adapter/storage/s3, only used when
+	// ObjectStorageDriver is "s3" — see s3.Options for what each maps to.
+	// AccessKeyID/SecretAccessKey/SessionToken are optional: leave all
+	// empty to use the AWS SDK's default credential chain instead.
+	ObjectStorageS3Bucket          string        `env:"OBJECT_STORAGE_S3_BUCKET,default="`
+	ObjectStorageS3Region          string        `env:"OBJECT_STORAGE_S3_REGION,default="`
+	ObjectStorageS3Endpoint        string        `env:"OBJECT_STORAGE_S3_ENDPOINT,default="`
+	ObjectStorageS3UsePathStyle    bool          `env:"OBJECT_STORAGE_S3_USE_PATH_STYLE,default=false"`
+	ObjectStorageS3AccessKeyID     string        `env:"OBJECT_STORAGE_S3_ACCESS_KEY_ID,default="`
+	ObjectStorageS3SecretAccessKey string        `env:"OBJECT_STORAGE_S3_SECRET_ACCESS_KEY,default="`
+	ObjectStorageS3SessionToken    string        `env:"OBJECT_STORAGE_S3_SESSION_TOKEN,default="`
+	ObjectStorageS3PresignExpiry   time.Duration `env:"OBJECT_STORAGE_S3_PRESIGN_EXPIRY,default=15m"`
 
 	// SeedOrganizationName/SeedAdmin* bootstrap a default organization and
 	// admin account on startup (see service.SeedService) — only run when
@@ -141,8 +178,47 @@ func main() {
 		log.Fatalw("failed to create group service", "error", err)
 	}
 
+	// registerObjectRoutesEnabled tracks whether the configured driver
+	// needs registerObjectRoutes (see server.go's Options.ObjectStorage)
+	// — true for "local", whose PutURL/GetURL point back at those routes;
+	// a driver with real external presigned URLs (e.g. a future S3 one)
+	// would leave this false, needing no such thing.
+	var objectStorage port.ObjectStorage
+	registerObjectRoutesEnabled := false
+	switch envOptions.ObjectStorageDriver {
+	case "local":
+		objectStorage, err = local.NewStorage(local.Options{
+			BasePath:      envOptions.ObjectStorageLocalPath,
+			PublicBaseURL: envOptions.HTTPPublicBaseURL,
+		})
+		if err != nil {
+			log.Fatalw("failed to create local object storage", "error", err)
+		}
+		registerObjectRoutesEnabled = true
+	case "s3":
+		objectStorage, err = s3.NewStorage(ctx, s3.Options{
+			Bucket:          envOptions.ObjectStorageS3Bucket,
+			Region:          envOptions.ObjectStorageS3Region,
+			Endpoint:        envOptions.ObjectStorageS3Endpoint,
+			UsePathStyle:    envOptions.ObjectStorageS3UsePathStyle,
+			AccessKeyID:     envOptions.ObjectStorageS3AccessKeyID,
+			SecretAccessKey: envOptions.ObjectStorageS3SecretAccessKey,
+			SessionToken:    envOptions.ObjectStorageS3SessionToken,
+			PresignExpiry:   envOptions.ObjectStorageS3PresignExpiry,
+		})
+		if err != nil {
+			log.Fatalw("failed to create s3 object storage", "error", err)
+		}
+		// registerObjectRoutesEnabled stays false: S3's PutURL/GetURL
+		// point straight at AWS, so this backend needs no self-serving
+		// passthrough for it.
+	default:
+		log.Fatalw("unsupported object storage driver", "driver", envOptions.ObjectStorageDriver)
+	}
+
 	equipmentModelService, err := service.NewEquipmentModelService(service.EquipmentModelServiceOptions{
 		Repository: equipmentModelRepository,
+		Storage:    objectStorage,
 	})
 	if err != nil {
 		log.Fatalw("failed to create equipment model service", "error", err)
@@ -177,11 +253,17 @@ func main() {
 		recaptchaOptions.Verifier = recaptcha.NewClient()
 	}
 
+	var httpObjectStorage port.ObjectStorage
+	if registerObjectRoutesEnabled {
+		httpObjectStorage = objectStorage
+	}
+
 	httpServer, err := httpapi.NewServer(httpapi.Options{
 		Logger:                log,
 		Addr:                  envOptions.HTTPAddr,
 		AllowedOrigins:        envOptions.HTTPAllowedOrigins,
 		AllowInsecureCookies:  envOptions.HTTPAllowInsecureCookies,
+		MaxRequestBodyBytes:   envOptions.HTTPMaxRequestBodyBytes,
 		Recaptcha:             recaptchaOptions,
 		VehicleService:        vehicleService,
 		AccountService:        accountService,
@@ -189,6 +271,7 @@ func main() {
 		BrandingService:       brandingService,
 		GroupService:          groupService,
 		EquipmentModelService: equipmentModelService,
+		ObjectStorage:         httpObjectStorage,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)
