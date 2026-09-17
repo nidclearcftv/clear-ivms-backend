@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (7);
+INSERT INTO version (version) VALUES (9);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -103,9 +103,12 @@ CREATE TABLE equipment_models (
     id                 UUID        PRIMARY KEY DEFAULT uuidv7(),
     name               TEXT        NOT NULL,
     description        TEXT        NOT NULL,
+    manufacturer       TEXT        NOT NULL,
+    features           TEXT[]      NOT NULL DEFAULT '{}',
     type               TEXT        NOT NULL CHECK (type IN ('primary', 'accessory')),
     public             BOOLEAN     NOT NULL DEFAULT FALSE,
     picture_object_key TEXT,
+    external_view_url  TEXT        NOT NULL,
     organization_id    UUID        NOT NULL,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -119,6 +122,9 @@ CREATE INDEX idx_equipment_models_organization ON equipment_models (organization
 -- indexing just the true rows keeps it small regardless of how many
 -- private models exist.
 CREATE INDEX idx_equipment_models_public ON equipment_models (public) WHERE public;
+-- GIN backs both the FeaturesInclude (@>) and FeaturesExclude (&&) checks
+-- in applyEquipmentModelFilters.
+CREATE INDEX idx_equipment_models_features ON equipment_models USING GIN (features);
 
 CREATE TABLE brandings (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),

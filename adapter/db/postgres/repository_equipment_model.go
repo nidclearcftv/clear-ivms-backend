@@ -12,7 +12,7 @@ import (
 	"github.com/nidclearcftv/clear-ivms-backend/core/port"
 )
 
-var equipmentModelColumns = []string{"id", "name", "description", "type", "public", "picture_object_key", "organization_id", "created_at", "updated_at"}
+var equipmentModelColumns = []string{"id", "name", "description", "manufacturer", "features", "type", "public", "picture_object_key", "external_view_url", "organization_id", "created_at", "updated_at"}
 
 // EquipmentModelRepository implements port.EquipmentModelRepository
 // against Postgres.
@@ -28,9 +28,11 @@ func NewEquipmentModelRepository(db *DB) *EquipmentModelRepository {
 // level (see schema.sql); RETURNING reads it back along with the other
 // server-generated columns.
 func (r *EquipmentModelRepository) Create(ctx context.Context, equipmentModel model.EquipmentModel) (model.EquipmentModel, error) {
+	equipmentModel.Features = nonNilStrings(equipmentModel.Features)
+
 	query, args, err := psql.Insert("equipment_models").
-		Columns("name", "description", "type", "organization_id").
-		Values(equipmentModel.Name, equipmentModel.Description, string(equipmentModel.Type), string(equipmentModel.OrganizationID)).
+		Columns("name", "description", "manufacturer", "features", "type", "external_view_url", "organization_id").
+		Values(equipmentModel.Name, equipmentModel.Description, equipmentModel.Manufacturer, equipmentModel.Features, string(equipmentModel.Type), equipmentModel.ExternalViewURL, string(equipmentModel.OrganizationID)).
 		Suffix("RETURNING id, public, created_at, updated_at").
 		ToSql()
 	if err != nil {
@@ -177,7 +179,19 @@ func applyEquipmentModelFilters(builder sq.SelectBuilder, filters model.Equipmen
 		builder = builder.Where(sq.Or{
 			sq.ILike{"name": pattern},
 			sq.ILike{"description": pattern},
+			sq.ILike{"manufacturer": pattern},
 		})
+	}
+	// features @> requires every listed value to be present (AND); the
+	// GIN index on features (see schema.sql) makes both this and the &&
+	// check below index-backed rather than a sequential scan.
+	if len(filters.FeaturesInclude) > 0 {
+		builder = builder.Where(sq.Expr("features @> ?::text[]", filters.FeaturesInclude))
+	}
+	// features && overlaps if any listed value is present; negated, this
+	// excludes an equipment model that has any of them (OR).
+	if len(filters.FeaturesExclude) > 0 {
+		builder = builder.Where(sq.Expr("NOT (features && ?::text[])", filters.FeaturesExclude))
 	}
 	return builder
 }
@@ -186,10 +200,15 @@ func applyEquipmentModelFilters(builder sq.SelectBuilder, filters model.Equipmen
 // SetPictureObjectKey. RETURNING reads their current (unchanged) values
 // back so the returned model reflects the database's actual state.
 func (r *EquipmentModelRepository) Update(ctx context.Context, equipmentModel model.EquipmentModel) (model.EquipmentModel, error) {
+	equipmentModel.Features = nonNilStrings(equipmentModel.Features)
+
 	query, args, err := psql.Update("equipment_models").
 		Set("name", equipmentModel.Name).
 		Set("description", equipmentModel.Description).
+		Set("manufacturer", equipmentModel.Manufacturer).
+		Set("features", equipmentModel.Features).
 		Set("type", string(equipmentModel.Type)).
+		Set("external_view_url", equipmentModel.ExternalViewURL).
 		Set("organization_id", string(equipmentModel.OrganizationID)).
 		Set("updated_at", sq.Expr("NOW()")).
 		Where(sq.Eq{"id": string(equipmentModel.ID)}).
@@ -294,7 +313,7 @@ func scanEquipmentModel(row scannableRow) (model.EquipmentModel, error) {
 		organizationID string
 	)
 
-	err := row.Scan(&id, &m.Name, &m.Description, &equipmentType, &m.Public, &m.PictureObjectKey, &organizationID, &m.CreatedAt, &m.UpdatedAt)
+	err := row.Scan(&id, &m.Name, &m.Description, &m.Manufacturer, &m.Features, &equipmentType, &m.Public, &m.PictureObjectKey, &m.ExternalViewURL, &organizationID, &m.CreatedAt, &m.UpdatedAt)
 	if err != nil {
 		return model.EquipmentModel{}, err
 	}
@@ -319,6 +338,16 @@ func scanEquipmentModelList(rows pgx.Rows) (model.List[model.EquipmentModel], er
 	}
 
 	return model.List[model.EquipmentModel]{Items: equipmentModels, Total: len(equipmentModels)}, nil
+}
+
+// nonNilStrings coalesces a nil slice to an empty one — features is
+// NOT NULL DEFAULT '{}' in schema.sql, and an explicit NULL parameter
+// would violate that constraint instead of falling back to the default.
+func nonNilStrings(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 var _ port.EquipmentModelRepository = (*EquipmentModelRepository)(nil)

@@ -11,9 +11,12 @@ import (
 )
 
 type createEquipmentModelRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	Type        string `json:"type" binding:"required,oneof=primary accessory"`
+	Name            string   `json:"name" binding:"required"`
+	Description     string   `json:"description"`
+	Manufacturer    string   `json:"manufacturer"`
+	Features        []string `json:"features"`
+	Type            string   `json:"type" binding:"required,oneof=primary accessory"`
+	ExternalViewURL string   `json:"externalViewUrl" binding:"omitempty,url"`
 }
 
 // updateEquipmentModelRequest deliberately excludes Public — see
@@ -22,9 +25,12 @@ type createEquipmentModelRequest struct {
 // model.EquipmentModel it's given. See PUT /:id/public instead, an
 // admin-only route.
 type updateEquipmentModelRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	Type        string `json:"type" binding:"required,oneof=primary accessory"`
+	Name            string   `json:"name" binding:"required"`
+	Description     string   `json:"description"`
+	Manufacturer    string   `json:"manufacturer"`
+	Features        []string `json:"features"`
+	Type            string   `json:"type" binding:"required,oneof=primary accessory"`
+	ExternalViewURL string   `json:"externalViewUrl" binding:"omitempty,url"`
 }
 
 type setEquipmentModelPublicRequest struct {
@@ -58,10 +64,13 @@ func registerEquipmentModelRoutes(rg *gin.RouterGroup, equipmentModels port.Equi
 		}
 
 		equipmentModel, err := equipmentModels.Create(c.Request.Context(), model.EquipmentModel{
-			Name:           req.Name,
-			Description:    req.Description,
-			Type:           model.EquipmentModelType(req.Type),
-			OrganizationID: utils.OrganizationID(c.Request.Context()),
+			Name:            req.Name,
+			Description:     req.Description,
+			Manufacturer:    req.Manufacturer,
+			Features:        req.Features,
+			Type:            model.EquipmentModelType(req.Type),
+			ExternalViewURL: req.ExternalViewURL,
+			OrganizationID:  utils.OrganizationID(c.Request.Context()),
 		})
 		if err != nil {
 			RespondError(c, err)
@@ -102,11 +111,14 @@ func registerEquipmentModelRoutes(rg *gin.RouterGroup, equipmentModels port.Equi
 		}
 
 		equipmentModel, err := equipmentModels.Update(c.Request.Context(), model.EquipmentModel{
-			ID:             model.ID(c.Param("id")),
-			Name:           req.Name,
-			Description:    req.Description,
-			Type:           model.EquipmentModelType(req.Type),
-			OrganizationID: utils.OrganizationID(c.Request.Context()),
+			ID:              model.ID(c.Param("id")),
+			Name:            req.Name,
+			Description:     req.Description,
+			Manufacturer:    req.Manufacturer,
+			Features:        req.Features,
+			Type:            model.EquipmentModelType(req.Type),
+			ExternalViewURL: req.ExternalViewURL,
+			OrganizationID:  utils.OrganizationID(c.Request.Context()),
 		})
 		if err != nil {
 			RespondError(c, err)
