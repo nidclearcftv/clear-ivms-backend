@@ -70,6 +70,13 @@ type Options struct {
 	// are registered.
 	BrandingService port.BrandingService
 
+	// EquipmentModelService backs the /api/v1/equipment-models routes,
+	// restricted to admins and org_admins of the request's organization
+	// (see requireOrganizationMiddleware/requireRolesMiddleware) — except
+	// PUT /:id/public, which is admin-only. Optional: if nil (or
+	// AccountService is), those routes aren't registered at all.
+	EquipmentModelService port.EquipmentModelService
+
 	// AllowedOrigins is the CORS allow-list. Leave empty to disable CORS
 	// entirely: cross-origin browser requests are blocked (the safe
 	// default), same-origin and non-browser clients are unaffected.
@@ -188,6 +195,10 @@ func NewServer(opts Options) (*Server, error) {
 
 		if opts.BrandingService != nil {
 			registerBrandingRoutes(v1, opts.BrandingService, opts.AccountService)
+		}
+
+		if opts.EquipmentModelService != nil {
+			registerEquipmentModelRoutes(v1, opts.EquipmentModelService, opts.AccountService)
 		}
 	}
 

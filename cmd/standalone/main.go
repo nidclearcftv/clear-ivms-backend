@@ -94,6 +94,7 @@ func main() {
 	organizationRepository := postgres.NewOrganizationRepository(db)
 	brandingRepository := postgres.NewBrandingRepository(db)
 	groupRepository := postgres.NewGroupRepository(db)
+	equipmentModelRepository := postgres.NewEquipmentModelRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
@@ -140,6 +141,13 @@ func main() {
 		log.Fatalw("failed to create group service", "error", err)
 	}
 
+	equipmentModelService, err := service.NewEquipmentModelService(service.EquipmentModelServiceOptions{
+		Repository: equipmentModelRepository,
+	})
+	if err != nil {
+		log.Fatalw("failed to create equipment model service", "error", err)
+	}
+
 	if envOptions.SeedAdminEmail != "" && envOptions.SeedAdminPassword != "" {
 		seedService, err := service.NewSeedService(service.SeedOptions{
 			Organizations:    organizationService,
@@ -170,16 +178,17 @@ func main() {
 	}
 
 	httpServer, err := httpapi.NewServer(httpapi.Options{
-		Logger:               log,
-		Addr:                 envOptions.HTTPAddr,
-		AllowedOrigins:       envOptions.HTTPAllowedOrigins,
-		AllowInsecureCookies: envOptions.HTTPAllowInsecureCookies,
-		Recaptcha:            recaptchaOptions,
-		VehicleService:       vehicleService,
-		AccountService:       accountService,
-		OrganizationService:  organizationService,
-		BrandingService:      brandingService,
-		GroupService:         groupService,
+		Logger:                log,
+		Addr:                  envOptions.HTTPAddr,
+		AllowedOrigins:        envOptions.HTTPAllowedOrigins,
+		AllowInsecureCookies:  envOptions.HTTPAllowInsecureCookies,
+		Recaptcha:             recaptchaOptions,
+		VehicleService:        vehicleService,
+		AccountService:        accountService,
+		OrganizationService:   organizationService,
+		BrandingService:       brandingService,
+		GroupService:          groupService,
+		EquipmentModelService: equipmentModelService,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)

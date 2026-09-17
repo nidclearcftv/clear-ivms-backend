@@ -86,6 +86,9 @@ const (
 	// ErrCodeBrandingDomainAlreadyExists means another branding already
 	// uses this domain (see the brandings.domain UNIQUE constraint).
 	ErrCodeBrandingDomainAlreadyExists ErrorCode = 6002
+
+	// Equipment model errors (resource 7).
+	ErrCodeEquipmentModelNotFound ErrorCode = 7001
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -118,6 +121,8 @@ var errorMessages = map[ErrorCode]string{
 
 	ErrCodeBrandingNotFound:            "branding not found",
 	ErrCodeBrandingDomainAlreadyExists: "a branding for this domain already exists",
+
+	ErrCodeEquipmentModelNotFound: "equipment model not found",
 }
 
 // MessageForCode returns the registered message for code, falling back to
