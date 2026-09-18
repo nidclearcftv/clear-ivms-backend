@@ -16,5 +16,35 @@ services:
       timeout: 5s
       retries: 5
 
+  # influxdb3-core stores vehicle_telemetry (see adapter/influxdb) — a
+  # fresh container has no auth token and no database yet; both are
+  # one-time setup steps run against the live server, not something
+  # docker-compose itself can declare:
+  #
+  #   docker compose exec influxdb3-core influxdb3 create token --admin
+  #   docker compose exec influxdb3-core influxdb3 create database \
+  #     --retention-period 5y clear_ivms
+  #
+  # (retention is set per-database at creation time in Core and can't be
+  # changed afterwards — see repository_vehicle_telemetry.go). Put the
+  # admin-token output in INFLUXDB_TOKEN for adapter/influxdb.Options.
+  influxdb3-core:
+    image: influxdb:3-core
+    restart: unless-stopped
+    command:
+      - influxdb3
+      - serve
+      - --node-id=clear-ivms
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3/data
+      - --plugin-dir=/var/lib/influxdb3/plugins
+    ports:
+      - "8181:8181"
+    volumes:
+      - influxdb3_data:/var/lib/influxdb3/data
+      - influxdb3_plugins:/var/lib/influxdb3/plugins
+
 volumes:
   postgres_data:
+  influxdb3_data:
+  influxdb3_plugins:
