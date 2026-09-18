@@ -23,18 +23,21 @@ func NewVehicleRepository(db *DB) *VehicleRepository {
 	return &VehicleRepository{db: db}
 }
 
+// Create never sets status — it always defaults to 'offline' at the
+// database level (see schema.sql); RETURNING reads it back along with
+// the other server-generated columns.
 func (r *VehicleRepository) Create(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	query, args, err := psql.Insert("vehicles").
 		Columns("organization_id", "group_id", "name", "external_id", "plate_number").
 		Values(string(vehicle.OrganizationID), idPtrToStringPtr(vehicle.GroupID), vehicle.Name, vehicle.ExternalID, vehicle.PlateNumber).
-		Suffix("RETURNING id, created_at, updated_at").
+		Suffix("RETURNING id, status, created_at, updated_at").
 		ToSql()
 	if err != nil {
 		return model.Vehicle{}, fmt.Errorf("postgres: failed to build create vehicle query: %w", err)
 	}
 
-	var id string
-	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&id, &vehicle.CreatedAt, &vehicle.UpdatedAt)
+	var id, status string
+	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&id, &status, &vehicle.CreatedAt, &vehicle.UpdatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return model.Vehicle{}, model.NewError(model.ErrCodeVehicleAlreadyExists, err)
@@ -49,6 +52,7 @@ func (r *VehicleRepository) Create(ctx context.Context, vehicle model.Vehicle) (
 	}
 
 	vehicle.ID = model.ID(id)
+	vehicle.Status = model.VehicleStatus(status)
 	return vehicle, nil
 }
 
@@ -209,6 +213,11 @@ func applyVehicleFilters(builder sq.SelectBuilder, filters model.VehicleFilters)
 	return builder
 }
 
+// Update never touches status — see SetStatus/SetStatusByExternalID.
+// RETURNING reads it back (along with the other server-generated columns)
+// so the returned model reflects the database's actual, unchanged value
+// instead of vehicle.Status' zero value (Update never receives it from
+// the caller, since it's deliberately excluded from the request).
 func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (model.Vehicle, error) {
 	query, args, err := psql.Update("vehicles").
 		Set("organization_id", string(vehicle.OrganizationID)).
@@ -218,13 +227,14 @@ func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (
 		Set("plate_number", vehicle.PlateNumber).
 		Set("updated_at", sq.Expr("NOW()")).
 		Where(sq.Eq{"id": string(vehicle.ID)}).
-		Suffix("RETURNING created_at, updated_at").
+		Suffix("RETURNING status, created_at, updated_at").
 		ToSql()
 	if err != nil {
 		return model.Vehicle{}, fmt.Errorf("postgres: failed to build update vehicle query: %w", err)
 	}
 
-	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&vehicle.CreatedAt, &vehicle.UpdatedAt)
+	var status string
+	err = r.db.Pool.QueryRow(ctx, query, args...).Scan(&status, &vehicle.CreatedAt, &vehicle.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Vehicle{}, model.NewError(model.ErrCodeVehicleNotFound, err)
@@ -241,6 +251,7 @@ func (r *VehicleRepository) Update(ctx context.Context, vehicle model.Vehicle) (
 		return model.Vehicle{}, fmt.Errorf("postgres: failed to update vehicle: %w", err)
 	}
 
+	vehicle.Status = model.VehicleStatus(status)
 	return vehicle, nil
 }
 
