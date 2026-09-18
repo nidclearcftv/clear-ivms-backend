@@ -35,6 +35,18 @@ func isUniqueViolation(err error) bool {
 	return ok && pgErr.Code == pgErrCodeUniqueViolation
 }
 
+// uniqueViolationConstraint returns the violated constraint's name if err
+// is a unique violation, and "" otherwise — for a table with more than one
+// unique constraint, where isUniqueViolation alone can't tell which one
+// fired.
+func uniqueViolationConstraint(err error) string {
+	pgErr, ok := asPgError(err)
+	if !ok || pgErr.Code != pgErrCodeUniqueViolation {
+		return ""
+	}
+	return pgErr.ConstraintName
+}
+
 // foreignKeyViolationConstraint returns the violated constraint's name if
 // err is a foreign key or restrict violation, and "" otherwise.
 func foreignKeyViolationConstraint(err error) string {

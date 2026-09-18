@@ -77,6 +77,13 @@ type Options struct {
 	// AccountService is), those routes aren't registered at all.
 	EquipmentModelService port.EquipmentModelService
 
+	// VehicleEquipmentService backs the
+	// /api/v1/vehicles/:id/equipment routes, restricted to admins
+	// and org_admins of the request's organization the same way
+	// EquipmentModelService's routes are. Optional: if nil (or
+	// AccountService is), those routes aren't registered at all.
+	VehicleEquipmentService port.VehicleEquipmentService
+
 	// ObjectStorage backs the generic /api/v1/objects/:key read/write
 	// routes (see registerObjectRoutes) — the local stand-in for a real
 	// presigned URL, which adapter/storage/local's PutURL/GetURL point
@@ -208,6 +215,10 @@ func NewServer(opts Options) (*Server, error) {
 
 		if opts.EquipmentModelService != nil {
 			registerEquipmentModelRoutes(v1, opts.EquipmentModelService, opts.AccountService)
+		}
+
+		if opts.VehicleEquipmentService != nil {
+			registerVehicleEquipmentRoutes(v1, opts.VehicleEquipmentService, opts.AccountService)
 		}
 
 		if opts.ObjectStorage != nil {

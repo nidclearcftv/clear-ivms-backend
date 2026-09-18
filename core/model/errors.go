@@ -93,6 +93,10 @@ const (
 	// exists (and is visible to the caller) but has no picture set — see
 	// EquipmentModelService.GetPictureURL.
 	ErrCodeEquipmentModelPictureNotFound ErrorCode = 7002
+	// ErrCodeEquipmentModelHasVehicleRegistrations means the equipment
+	// model couldn't be deleted because at least one vehicle still has it
+	// registered — see fk_vehicle_equipment_equipment_model.
+	ErrCodeEquipmentModelHasVehicleRegistrations ErrorCode = 7003
 
 	// Object storage errors (resource 8).
 	// ErrCodeObjectNotFound means no object exists under the requested
@@ -101,6 +105,17 @@ const (
 	// deleted/lost out from under it), since callers always check for a
 	// key's presence before reading it.
 	ErrCodeObjectNotFound ErrorCode = 8001
+
+	// Vehicle equipment errors (resource 9).
+	ErrCodeVehicleEquipmentNotFound ErrorCode = 9001
+	// ErrCodeVehicleEquipmentPrimaryAlreadyExists means the vehicle
+	// already has a primary equipment registered — see the partial
+	// unique index idx_vehicle_equipment_one_primary_per_vehicle.
+	ErrCodeVehicleEquipmentPrimaryAlreadyExists ErrorCode = 9002
+	// ErrCodeVehicleEquipmentAccessoryLimitReached means the vehicle
+	// already has VehicleEquipmentMaxAccessoriesPerVehicle accessories
+	// registered.
+	ErrCodeVehicleEquipmentAccessoryLimitReached ErrorCode = 9003
 )
 
 // errorMessages maps each ErrorCode to the human-readable, English message
@@ -115,12 +130,12 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeVehicleNotFound:            "vehicle not found",
 	ErrCodeVehicleAlreadyExists:       "a vehicle with this external ID already exists",
 
-	ErrCodeAccountNotFound:              "account not found",
-	ErrCodeAccountEmailAlreadyExists:    "an account with this email already exists",
-	ErrCodeAccountHasOrganizations:      "account still belongs to one or more organizations",
-	ErrCodeAccountSessionNotFound:       "account session not found",
-	ErrCodeInvalidCredentials:           "invalid email or password",
-	ErrCodeAccountBlocked:               "account is blocked",
+	ErrCodeAccountNotFound:                     "account not found",
+	ErrCodeAccountEmailAlreadyExists:           "an account with this email already exists",
+	ErrCodeAccountHasOrganizations:             "account still belongs to one or more organizations",
+	ErrCodeAccountSessionNotFound:              "account session not found",
+	ErrCodeInvalidCredentials:                  "invalid email or password",
+	ErrCodeAccountBlocked:                      "account is blocked",
 	ErrCodeAccountTypeNotAllowedInGroup:        "only accounts of type user can be added to a group",
 	ErrCodeAccountTypeNotAllowedInOrganization: "admin accounts cannot be associated with an organization",
 
@@ -134,10 +149,15 @@ var errorMessages = map[ErrorCode]string{
 	ErrCodeBrandingNotFound:            "branding not found",
 	ErrCodeBrandingDomainAlreadyExists: "a branding for this domain already exists",
 
-	ErrCodeEquipmentModelNotFound:        "equipment model not found",
-	ErrCodeEquipmentModelPictureNotFound: "equipment model has no picture",
+	ErrCodeEquipmentModelNotFound:                "equipment model not found",
+	ErrCodeEquipmentModelPictureNotFound:         "equipment model has no picture",
+	ErrCodeEquipmentModelHasVehicleRegistrations: "equipment model is still registered on one or more vehicles",
 
 	ErrCodeObjectNotFound: "object not found",
+
+	ErrCodeVehicleEquipmentNotFound:              "vehicle equipment not found",
+	ErrCodeVehicleEquipmentPrimaryAlreadyExists:  "vehicle already has a primary equipment registered",
+	ErrCodeVehicleEquipmentAccessoryLimitReached: "vehicle has reached its accessory equipment limit",
 }
 
 // MessageForCode returns the registered message for code, falling back to

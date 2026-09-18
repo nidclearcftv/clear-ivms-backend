@@ -32,8 +32,8 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeForbidden:                  http.StatusForbidden,
 	model.ErrCodeRecaptchaFailed:            http.StatusBadRequest,
 	model.ErrCodeRecaptchaChallengeRequired: http.StatusBadRequest,
-	model.ErrCodeVehicleNotFound:      http.StatusNotFound,
-	model.ErrCodeVehicleAlreadyExists: http.StatusConflict,
+	model.ErrCodeVehicleNotFound:            http.StatusNotFound,
+	model.ErrCodeVehicleAlreadyExists:       http.StatusConflict,
 
 	model.ErrCodeAccountNotFound:                     http.StatusNotFound,
 	model.ErrCodeAccountSessionNotFound:              http.StatusNotFound,
@@ -48,10 +48,15 @@ var errorStatusCodes = map[model.ErrorCode]int{
 	model.ErrCodeGroupNotFound:      http.StatusNotFound,
 	model.ErrCodeGroupInvalidParent: http.StatusBadRequest,
 
-	model.ErrCodeEquipmentModelNotFound:        http.StatusNotFound,
-	model.ErrCodeEquipmentModelPictureNotFound: http.StatusNotFound,
+	model.ErrCodeEquipmentModelNotFound:                http.StatusNotFound,
+	model.ErrCodeEquipmentModelPictureNotFound:         http.StatusNotFound,
+	model.ErrCodeEquipmentModelHasVehicleRegistrations: http.StatusConflict,
 
 	model.ErrCodeObjectNotFound: http.StatusNotFound,
+
+	model.ErrCodeVehicleEquipmentNotFound:              http.StatusNotFound,
+	model.ErrCodeVehicleEquipmentPrimaryAlreadyExists:  http.StatusConflict,
+	model.ErrCodeVehicleEquipmentAccessoryLimitReached: http.StatusConflict,
 }
 
 func statusForCode(code model.ErrorCode) int {

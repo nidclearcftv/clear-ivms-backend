@@ -132,6 +132,7 @@ func main() {
 	brandingRepository := postgres.NewBrandingRepository(db)
 	groupRepository := postgres.NewGroupRepository(db)
 	equipmentModelRepository := postgres.NewEquipmentModelRepository(db)
+	vehicleEquipmentRepository := postgres.NewVehicleEquipmentRepository(db)
 
 	vehicleService, err := service.NewVehicleService(service.VehicleServiceOptions{
 		Repository: vehicleRepository,
@@ -224,6 +225,15 @@ func main() {
 		log.Fatalw("failed to create equipment model service", "error", err)
 	}
 
+	vehicleEquipmentService, err := service.NewVehicleEquipmentService(service.VehicleEquipmentServiceOptions{
+		Repository:      vehicleEquipmentRepository,
+		Vehicles:        vehicleRepository,
+		EquipmentModels: equipmentModelRepository,
+	})
+	if err != nil {
+		log.Fatalw("failed to create vehicle equipment service", "error", err)
+	}
+
 	if envOptions.SeedAdminEmail != "" && envOptions.SeedAdminPassword != "" {
 		seedService, err := service.NewSeedService(service.SeedOptions{
 			Organizations:    organizationService,
@@ -259,19 +269,20 @@ func main() {
 	}
 
 	httpServer, err := httpapi.NewServer(httpapi.Options{
-		Logger:                log,
-		Addr:                  envOptions.HTTPAddr,
-		AllowedOrigins:        envOptions.HTTPAllowedOrigins,
-		AllowInsecureCookies:  envOptions.HTTPAllowInsecureCookies,
-		MaxRequestBodyBytes:   envOptions.HTTPMaxRequestBodyBytes,
-		Recaptcha:             recaptchaOptions,
-		VehicleService:        vehicleService,
-		AccountService:        accountService,
-		OrganizationService:   organizationService,
-		BrandingService:       brandingService,
-		GroupService:          groupService,
-		EquipmentModelService: equipmentModelService,
-		ObjectStorage:         httpObjectStorage,
+		Logger:                  log,
+		Addr:                    envOptions.HTTPAddr,
+		AllowedOrigins:          envOptions.HTTPAllowedOrigins,
+		AllowInsecureCookies:    envOptions.HTTPAllowInsecureCookies,
+		MaxRequestBodyBytes:     envOptions.HTTPMaxRequestBodyBytes,
+		Recaptcha:               recaptchaOptions,
+		VehicleService:          vehicleService,
+		AccountService:          accountService,
+		OrganizationService:     organizationService,
+		BrandingService:         brandingService,
+		GroupService:            groupService,
+		EquipmentModelService:   equipmentModelService,
+		VehicleEquipmentService: vehicleEquipmentService,
+		ObjectStorage:           httpObjectStorage,
 	})
 	if err != nil {
 		log.Fatalw("failed to create http server", "error", err)

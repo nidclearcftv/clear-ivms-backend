@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS version (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO version (version) VALUES (10);
+INSERT INTO version (version) VALUES (11);
 
 CREATE TABLE organizations (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -126,6 +126,35 @@ CREATE INDEX idx_equipment_models_public ON equipment_models (public) WHERE publ
 -- GIN backs both the FeaturesInclude (@>) and FeaturesExclude (&&) checks
 -- in applyEquipmentModelFilters.
 CREATE INDEX idx_equipment_models_features ON equipment_models USING GIN (features);
+
+CREATE TABLE vehicle_equipment (
+    id                   UUID        PRIMARY KEY DEFAULT uuidv7(),
+    vehicle_id           UUID        NOT NULL,
+    equipment_model_id   UUID        NOT NULL,
+    -- Snapshotted from equipment_models.type at registration time — see
+    -- core/model/vehicle_equipment.go's VehicleEquipment.EquipmentModelType
+    -- doc comment for why this never re-derives from the catalog entry.
+    equipment_model_type TEXT        NOT NULL CHECK (equipment_model_type IN ('primary', 'accessory')),
+    serial_number        TEXT        NOT NULL,
+    description          TEXT        NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_vehicle_equipment_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vehicle_equipment_equipment_model FOREIGN KEY (equipment_model_id) REFERENCES equipment_models(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_vehicle_equipment_vehicle ON vehicle_equipment (vehicle_id);
+CREATE INDEX idx_vehicle_equipment_equipment_model ON vehicle_equipment (equipment_model_id);
+-- Enforces "at most one primary equipment per vehicle" at the database
+-- level — see VehicleEquipmentService.Create, which relies on this
+-- constraint's violation (rather than a pre-check) to reject a second
+-- primary, the same way uq_vehicles_organization_external_id is relied on
+-- for vehicle external ID uniqueness. The "up to 49 accessories" half of
+-- the cap can't be expressed as a row-level constraint the same way (it's
+-- a cross-row COUNT), so it's enforced in the service layer instead — see
+-- model.VehicleEquipmentMaxAccessoriesPerVehicle.
+CREATE UNIQUE INDEX idx_vehicle_equipment_one_primary_per_vehicle ON vehicle_equipment (vehicle_id) WHERE equipment_model_type = 'primary';
 
 CREATE TABLE brandings (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),

@@ -233,8 +233,10 @@ func (r *EquipmentModelRepository) Update(ctx context.Context, equipmentModel mo
 	return equipmentModel, nil
 }
 
-// Delete has no dependents to map: nothing else in the schema references
-// equipment_models.id.
+// Delete maps a fk_vehicle_equipment_equipment_model restrict violation
+// (a vehicle still has this equipment model registered — see
+// adapter/db/postgres/repository_vehicle_equipment.go) to
+// ErrCodeEquipmentModelHasVehicleRegistrations.
 func (r *EquipmentModelRepository) Delete(ctx context.Context, id model.ID) error {
 	query, args, err := psql.Delete("equipment_models").
 		Where(sq.Eq{"id": string(id)}).
@@ -245,6 +247,9 @@ func (r *EquipmentModelRepository) Delete(ctx context.Context, id model.ID) erro
 
 	tag, err := r.db.Pool.Exec(ctx, query, args...)
 	if err != nil {
+		if foreignKeyViolationConstraint(err) == "fk_vehicle_equipment_equipment_model" {
+			return model.NewError(model.ErrCodeEquipmentModelHasVehicleRegistrations, err)
+		}
 		return fmt.Errorf("postgres: failed to delete equipment model: %w", err)
 	}
 
